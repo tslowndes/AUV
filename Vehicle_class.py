@@ -2,10 +2,10 @@ import sys
 sys.path.insert(0, "/noc/users/tsl1g12/gen")
 sys.path.insert(0, 'C:/users/tsl1g12/desktop/phd_sim/gen')
 sys.path.insert(0, 'D:/Desktop/PhD_sim/PhD_sim/gen')
-from numba import jitclass
 from math import sqrt, atan, exp, cos, sin, radians, degrees, ceil, floor, pi, isnan
 from numpy import abs
 import numpy as np
+
 from find_dir import find_dir
 from log import Log
 from dist import dist
