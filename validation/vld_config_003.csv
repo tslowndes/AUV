@@ -1,0 +1,15 @@
+sim_type, 1
+sim_sub_type, 3
+no, 3
+nd, 3
+run_time, 2000
+time_step, 0.5
+feature_monitoring, 0
+feature_move, 0
+swarm_size, 1
+sat_andor_acc, 1
+comms_range, 500
+desired_d, 250
+dive_depth, -50
+dive_dist, 50
+t_uw, 1200
