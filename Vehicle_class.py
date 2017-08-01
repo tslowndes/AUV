@@ -1,7 +1,5 @@
 import sys
-sys.path.insert(0, "/noc/users/tsl1g12/gen")
-sys.path.insert(0, 'C:/users/tsl1g12/desktop/phd_sim/gen')
-sys.path.insert(0, 'D:/Desktop/PhD_sim/PhD_sim/gen')
+sys.path.insert(0, "../gen")
 from math import sqrt, atan, exp, cos, sin, radians, degrees, ceil, floor, pi, isnan
 from numpy import abs
 import numpy as np
@@ -185,8 +183,6 @@ class Vehicle:
         self.prev_x = self.x
         self.prev_y = self.y
 
-        v_xy = self.v * cos(radians(self.pitch))
-
         self.x = self.x + (self.vx * time_step)
         self.y = self.y + (self.vy * time_step)
         self.z = self.z - (self.vz * time_step)
@@ -200,7 +196,7 @@ class Vehicle:
         # Simulation of dead reckoning drift error
         pass
 
-    def payload(self, t, time_step):
+    def payload(self, t, time_step=0.5):
         global_max_loc = [500 + (0.078 * t * time_step), 500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
         if dist > 850:
@@ -208,7 +204,7 @@ class Vehicle:
         else:
             self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist) ** 2)) / (2 * (125 ** 2)))
 
-    def go(self, elps_time, config):
+    def go(self, config, elps_time = 0):
         # Have to skip move_to_waypoint in velocity validation.
         if config.sim_sub_type != 3:
             self.move_to_waypoint()
@@ -227,6 +223,9 @@ class Vehicle:
         else:
             self.yaw = yaw
 
+        # Recalculates vx,vy,vz
+        self.set_v()
+
     def set_yaw_demand(self, yd):
         self.yaw_demand = yd
 
@@ -236,13 +235,18 @@ class Vehicle:
         else:
             self.pitch = pitch
 
+        # Recalculates vx,vy,vz
+        self.set_v()
+
     def set_pitch_demand(self, pd):
         if abs(pd) > self.config.max_pitch:
             self.pitch_demand = (self.pitch_demand / abs(self.pitch_demand)) * self.config.max_pitch
         else:
             self.pitch_demand = pd
 
-    def set_v(self, v):
+    def set_v(self, v = -999):
+        if v == -999:
+            v = self.v
         if v > self.config.max_v:
             self.v = self.config.max_v
         elif v < self.config.min_v:
@@ -293,12 +297,17 @@ class Vehicle:
         self.log.y_demand.append(self.waypoints[self.current_waypoint][1])
         self.log.z_demand.append(self.waypoints[self.current_waypoint][2])
 
-    def __init__(self,i, Swarm_Size, start_x, start_y, start_z, start_yaw, time_step):
+    def __del__(self):
+        pass
+
+    def __init__(self,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
+        # Loading configurable parameters
+        self.config = sim_config('config/vehicle_config.csv')
         self.ID = i
         # Initialising
         self.x = start_x
         self.y = start_y
-        self.z = 0
+        self.z = start_z
         self.yaw = start_yaw        # Heading in degrees 0 is along +ve x axis
         self.pitch = 0              # +ve = Nose up (rise), -ve = Nose down (Dive)
         self.set_v(0.5)                # Velocity in m/s
@@ -309,7 +318,7 @@ class Vehicle:
         self.log = Log()
         self.state = 0
         self.t_state_change = 0
-        self.payload(0, time_step)
+        self.payload(0)
         self.current_waypoint = 0
         self.waypoints = [[start_x,start_y,0]]
         # Swarm properties
@@ -323,10 +332,6 @@ class Vehicle:
         self.loc_pitch = np.zeros(Swarm_Size)
         self.loc_measurements = np.zeros(Swarm_Size)
         self.set_loc_pos(self.ID, [self.x, self.y, self.z])
-
-
-        # Loading configurable parameters
-        self.config = sim_config('config/vehicle_config.csv')
 
         self.logger()
 
