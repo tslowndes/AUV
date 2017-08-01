@@ -30,15 +30,11 @@ class Vehicle:
                 self.loc_yaw[msg.ID] = msg.yaw
                 self.loc_pitch[msg.ID] = msg.pitch
 
-    def set_loc_pos(self, ID, pos):
-            self.loc_pos[ID] = pos
-            self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z]))**2))
-
     def sat_comms(self, base, swarm_size, elps_time):
         if self.z > -0.5 and self.sat_commd == 0:
             self.sat_up(base, elps_time)
             self.sat_down(base, swarm_size, elps_time)
-            self.state = 0
+            self.set_state(0)
             self.t_state_change = elps_time
             self.sat_commd = 1
 
@@ -81,15 +77,15 @@ class Vehicle:
 
     def time_checks(self, elps_time, config):
         # If AUV is still diving after 75% of max time permitted underwater, force to surface.
-        if elps_time - self.t_state_change > config.t_uw * 0.5 and self.state == 0 and self.z < -0.5:
+        if elps_time - self.t_state_change > config.t_uw * 0.5 and self.state == 0:
             # Surface
-            self.state = 1
+            self.set_state(1)
             self.waypoints = [self.waypoints[self.current_waypoint][0:2]+[0]]
             self.current_waypoint = 0
 
-        if self.state == 1 and elps_time - self.t_state_change > config.t_uw * 0.9:
+        if elps_time - self.t_state_change > config.t_uw * 0.9:
             # Surface NOW
-            self.state = 2
+            self.set_state(2)
             self.waypoints = [[self.x, self.y, 0]]
             self.current_waypoint = 0
 
@@ -127,10 +123,9 @@ class Vehicle:
                 curr_wayp = self.waypoints[self.current_waypoint]
                 # update distance variables for new waypoint
                 dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
-
             else:
                 # Set waypoint for vehicle to surface
-                self.state = 1
+                self.set_state(1)
                 self.waypoints = [[curr_wayp[0], curr_wayp[1], 0]]
                 self.current_waypoint = 0
                 curr_wayp = self.waypoints[self.current_waypoint]
@@ -139,7 +134,7 @@ class Vehicle:
         # if self needs to move in the xy plane
         if self.x != curr_wayp[0] or self.y != curr_wayp[1]:
             # Set yaw demand to the direction of the vector from current position to waypoint
-            self.yaw_demand = find_dir(self.x, self.y , curr_wayp[0], curr_wayp[1])
+            self.set_yaw_demand(find_dir(self.x, self.y , curr_wayp[0], curr_wayp[1]))
 
         # If depth requirement is not met
         if self.z != curr_wayp[2]:
@@ -147,17 +142,11 @@ class Vehicle:
             dist_xy = sqrt(dist_xyz[0]**2 + dist_xyz[1]**2)
             # when dist_xy = 0, errors
             if dist_xy == 0 and self.z > curr_wayp[2]:
-                self.pitch_demand = self.config.max_pitch
+                self.set_pitch_demand(self.config.max_pitch)
             elif dist_xy == 0 and self.z < curr_wayp[2]:
-                self.pitch_demand = -self.config.max_pitch
+                self.set_pitch_demand(-self.config.max_pitch)
             else:
-                self.pitch_demand = degrees(atan(((self.z - curr_wayp[2]) / dist_xy)))
-
-        if abs(self.pitch_demand) > self.config.max_pitch:
-            self.pitch_demand = (self.pitch_demand / abs(self.pitch_demand)) * self.config.max_pitch
-
-        #self.v_demand = self.config.max_v / 2.0
-
+                self.set_pitch_demand(degrees(atan(((self.z - curr_wayp[2]) / dist_xy))))
 
     # Models the reaction of the AUV to changes in demand with simple exponentials
     def plant(self, time_step):
@@ -165,14 +154,14 @@ class Vehicle:
 
         #Quicker to go all the way round or pass through 0/360
         if self.yaw_demand - self.yaw > 180 or self.yaw_demand - self.yaw < 0 and self.yaw_demand - self.yaw > -180:
-            yaw_rate = -4*(abs(self.yaw - self.yaw_demand))*exp(-1)      #Rotate Clockwise
+            yaw_rate = -4*(abs(self.yaw - self.yaw_demand))*exp(-1)      # Rotate Clockwise
         else:
-            yaw_rate = 4*(abs(self.yaw - self.yaw_demand))*exp(-1)       #Rotate anti-clockwise
+            yaw_rate = 4*(abs(self.yaw - self.yaw_demand))*exp(-1)       # Rotate anti-clockwise
 
         if abs(yaw_rate) > self.config.max_yaw_rate:
             yaw_rate = (yaw_rate / abs(yaw_rate)) * self.config.max_yaw_rate
 
-        self.yaw = self.correct_yaw(self.yaw + yaw_rate * time_step)
+        self.set_yaw(self.yaw + (yaw_rate * time_step))
 
         #################################### CHANGES TO PITCH ###############################################
 
@@ -180,7 +169,7 @@ class Vehicle:
         if abs(pitch_rate) > self.config.max_pitch_rate:
             pitch_rate = (pitch_rate / abs(pitch_rate)) * self.config.max_pitch_rate
 
-        self.pitch = self.pitch + (pitch_rate * time_step)
+        self.set_pitch(self.pitch + (pitch_rate * time_step))
 
         #################################### CHANGES TO VEL ###############################################
         if self.v < self.v_demand:
@@ -190,12 +179,7 @@ class Vehicle:
         else:
             acc = 0
 
-        self.v = self.v + (acc * time_step)
-
-        if self.v > self.config.max_v:
-            self.v = self.config.max_v
-        elif self.v < self.config.min_v:
-            self.v = self.config.min_v
+        self.set_v(self.v + (acc * time_step))
 
     def dead_reckoner(self, time_step):
         self.prev_x = self.x
@@ -203,9 +187,9 @@ class Vehicle:
 
         v_xy = self.v * cos(radians(self.pitch))
 
-        self.x = self.x + ((v_xy * cos(radians(self.yaw)) * time_step))
-        self.y = self.y + ((v_xy * sin(radians(self.yaw)) * time_step))
-        self.z = self.z - ((self.v * sin(radians(self.pitch)) * time_step))
+        self.x = self.x + (self.vx * time_step)
+        self.y = self.y + (self.vy * time_step)
+        self.z = self.z - (self.vz * time_step)
 
         if self.z > 0:
             self.z = 0
@@ -219,19 +203,10 @@ class Vehicle:
     def payload(self, t, time_step):
         global_max_loc = [500 + (0.078 * t * time_step), 500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
-
         if dist > 850:
             self.measurement = 0
         else:
             self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist) ** 2)) / (2 * (125 ** 2)))
-
-    def correct_yaw(self, yaw):
-        if yaw < 0:
-            return yaw + 360
-        elif yaw > 360:
-            return yaw - 360
-        else:
-            return yaw
 
     def go(self, elps_time, config):
         # Have to skip move_to_waypoint in velocity validation.
@@ -241,6 +216,64 @@ class Vehicle:
         self.dead_reckoner(config.time_step)
         self.payload(elps_time, config.time_step)
         self.logger()
+
+    ############################################### SETTERS ############################################################
+
+    def set_yaw(self, yaw):
+        if yaw < 0:
+            self.yaw = yaw + 360
+        elif yaw > 360:
+            self.yaw = yaw - 360
+        else:
+            self.yaw = yaw
+
+    def set_yaw_demand(self, yd):
+        self.yaw_demand = yd
+
+    def set_pitch(self, pitch):
+        if abs(pitch) > self.config.max_pitch:
+            self.pitch = (pitch / abs(pitch)) * self.config.max_pitch
+        else:
+            self.pitch = pitch
+
+    def set_pitch_demand(self, pd):
+        if abs(pd) > self.config.max_pitch:
+            self.pitch_demand = (self.pitch_demand / abs(self.pitch_demand)) * self.config.max_pitch
+        else:
+            self.pitch_demand = pd
+
+    def set_v(self, v):
+        if v > self.config.max_v:
+            self.v = self.config.max_v
+        elif v < self.config.min_v:
+            self.v = self.config.min_v
+        else:
+            self.v = v
+
+        v_xy = self.v * cos(radians(self.pitch))
+        self.vx = v_xy * cos(radians(self.yaw))
+        self.vy = v_xy * sin(radians(self.yaw))
+        self.vz = self.v * sin(radians(self.pitch))
+
+    def set_v_demand(self, vd):
+        if vd >= 0:
+            self.v_demand = vd
+
+    def set_loc_pos(self, ID, pos):
+        self.loc_pos[ID] = pos
+        self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z])) ** 2))
+
+    def set_state(self, s):
+        if self.state == 1 and s == 0 and self.z < -0.5:
+            print('INVALID STATE CHANGE: Attempted to move from surfacing to diving at z %f m' % self.z)
+            raise
+        elif self.state == 2 and s == 0 and self.z < -0.5:
+            print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving at z %f m' % self.z)
+            raise
+        elif self.state == 2 and s == 1:
+            print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
+
+        self.state = s
 
     ####################################################################################################################
 
@@ -268,8 +301,8 @@ class Vehicle:
         self.z = 0
         self.yaw = start_yaw        # Heading in degrees 0 is along +ve x axis
         self.pitch = 0              # +ve = Nose up (rise), -ve = Nose down (Dive)
-        self.v = 0.5                # Velocity in m/s
-        self.pitch_demand = self.pitch
+        self.set_v(0.5)                # Velocity in m/s
+        self.set_pitch_demand(self.pitch)
         self.yaw_demand = self.yaw
         self.v_demand = self.v
         self.sat_commd = 0
