@@ -1,5 +1,4 @@
 import numpy as np
-from numba import jitclass
 
 class V2V_comms:
     def transmit_msg(self, vehicles, config):
