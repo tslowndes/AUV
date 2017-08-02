@@ -162,3 +162,19 @@ def test_sat_loc_vehicles():
             AUV_B.loc_vehicles[1] == 0 and
             AUV_B.loc_vehicles[2] == 0
             )
+
+def test_sat_commd():
+    AUV_A = Vehicle(0, 3, 10, 10, 0, 0)
+
+    config = sim_config('tests/config/sim_config.csv')
+    base = Base_Station(config.swarm_size)
+    elps_time = 0
+
+    AUV_A.sat_comms(base, config.swarm_size, elps_time)
+
+    assert AUV_A.sat_commd == 1
+
+    AUV_A.z = -1
+    AUV_A.sat_comms(base, config.swarm_size, elps_time)
+
+    assert AUV_A.sat_commd == 0

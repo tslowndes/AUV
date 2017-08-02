@@ -58,3 +58,10 @@ def test_waypoint_setting(state, start, target, expected):
     assert (abs(AUV.waypoints[0][0] - expected[0]) < 0.0000001 and
             abs(AUV.waypoints[0][1] - expected[1]) < 0.0000001 and
             abs(AUV.waypoints[0][2] - expected[2]) < 0.0000001)
+
+def test_waypoint_sequence():
+    AUV = Vehicle(0, 1, 50, 50, -49, 0)
+    config = sim_config('config/sim_config.csv')
+    AUV.waypoints = [[50,50,-50],[100,100,0]]
+    AUV.move_to_waypoint()
+    assert AUV.current_waypoint == 1
