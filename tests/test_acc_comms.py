@@ -84,3 +84,41 @@ def test_sent_time(msg_time, time_1, time_2, expected):
 
     assert AUV_B.time_stamps[0] == expected[0]
     assert AUV_C.time_stamps[0] == expected[1]
+
+@pytest.mark.parametrize("comms_AUV", [
+    0,
+    1,
+    2
+])
+
+def test_acc_loc_vehicles(comms_AUV):
+    # B is in range of A and C
+    # A is out of range of C
+    AUV_A = Vehicle(0, 3, 1, 1, -1, 0)
+    AUV_B = Vehicle(1, 3, 50, 50, -1, 0)
+    AUV_C = Vehicle(2, 3, 401, 401, -1, 0)
+
+    config = sim_config('tests/config/sim_config.csv')
+    achannel = V2V_comms(config)
+    if comms_AUV == 0:
+        AUV_A.send_acc_msg(achannel,0,config, [AUV_A, AUV_B, AUV_C])
+    elif comms_AUV == 1:
+        AUV_B.send_acc_msg(achannel, 0, config, [AUV_A, AUV_B, AUV_C])
+    elif comms_AUV == 2:
+        AUV_C.send_acc_msg(achannel,0,config, [AUV_A, AUV_B, AUV_C])
+
+    AUV_A.receive_acc_msg(achannel)
+    AUV_B.receive_acc_msg(achannel)
+    AUV_C.receive_acc_msg(achannel)
+
+    if comms_AUV == 0:
+        # B is in range hence As index in Bs loc_vehicles = 1
+        # C is out of range: As index in B.loc_vehicles = 0
+        assert AUV_B.loc_vehicles[0] == 1
+        assert AUV_C.loc_vehicles[0] == 0
+    elif comms_AUV == 1:
+        assert AUV_A.loc_vehicles[1] == 1
+        assert AUV_C.loc_vehicles[1] == 1
+    elif comms_AUV == 2:
+        assert AUV_A.loc_vehicles[2] == 0
+        assert AUV_B.loc_vehicles[2] == 1

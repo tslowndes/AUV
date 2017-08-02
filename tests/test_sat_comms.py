@@ -116,8 +116,49 @@ def test_time_stamps():
             AUV_C.loc_pos[1][1] != AUV_B.y and
             AUV_C.loc_pos[1][2] != AUV_B.z)
 
-def test_acc_loc_vehicles():
-    pass
-
 def test_sat_loc_vehicles():
-    pass
+    AUV_A = Vehicle(0, 3, 10, 10, 0, 0)
+    AUV_B = Vehicle(1, 3, 50, 50, 0, 0)
+    AUV_C = Vehicle(2, 3, 501, 501, 0, 0)
+
+    config = sim_config('tests/config/sim_config.csv')
+    base = Base_Station(config.swarm_size)
+    achannel = V2V_comms(config)
+    elps_time = 0
+    # Information exchanged via satellite
+    AUV_A.sat_up(base, elps_time)
+    AUV_B.sat_up(base, elps_time)
+    AUV_C.sat_up(base, elps_time)
+    AUV_A.sat_down(base, config.swarm_size, elps_time)
+    AUV_B.sat_down(base, config.swarm_size, elps_time)
+    AUV_C.sat_down(base, config.swarm_size, elps_time)
+
+    assert (AUV_A.loc_vehicles[0] == 0 and
+            AUV_A.loc_vehicles[1] == 1 and
+            AUV_A.loc_vehicles[2] == 1
+            )
+
+    elps_time = 50
+
+    # Information exchanged via satellite
+    AUV_A.sat_up(base, elps_time)
+    AUV_A.sat_down(base, config.swarm_size, elps_time)
+
+    # There has been no update from B or C since last 'surface'
+    # hence data rendered uncertain and B & C removed from loc_vehicles
+
+    assert (AUV_A.loc_vehicles[0] == 0 and
+            AUV_A.loc_vehicles[1] == 0 and
+            AUV_A.loc_vehicles[2] == 0
+            )
+
+    AUV_B.sat_up(base, elps_time)
+    AUV_B.sat_down(base, config.swarm_size, elps_time)
+
+    # There has been an update from A since last sat comm hence A kept
+    # in loc vehicles but no update from C means C is removed.
+
+    assert (AUV_B.loc_vehicles[0] == 1 and
+            AUV_B.loc_vehicles[1] == 0 and
+            AUV_B.loc_vehicles[2] == 0
+            )
