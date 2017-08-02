@@ -75,7 +75,7 @@ class Vehicle:
 
 
     def time_checks(self, elps_time, config):
-        # If AUV is still diving after 75% of max time permitted underwater, force to surface.
+        # If AUV is still diving after x% of max time permitted underwater, force to surface.
         if elps_time - self.t_state_change > config.t_uw * 0.5 and self.state == 0:
             # Surface
             self.set_state(1)
@@ -90,7 +90,7 @@ class Vehicle:
 
 
     def set_waypoint(self, target, elps_time, config):
-        if elps_time - self.t_state_change < config.t_uw and self.state != 2:
+        if self.state != 2:
             # If the distance to a waypoint > the set maximum distance for a single dive, a dive of dive_dist (xy) is perfromed in
             # the same direction of the original waypoint. This means the AUV has a chance of reaching depth instead of diving at
             # a shallow angle to a waypoint multiple km away.
