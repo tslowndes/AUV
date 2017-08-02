@@ -40,37 +40,38 @@ class Vehicle:
             self.sat_commd = 0
 
     def sat_up(self, base, elps_time):
-
-        # Upload
-        base.log[self.ID].x.append(self.x)
-        base.log[self.ID].y.append(self.y)
-        base.log[self.ID].z.append(self.z)
-        base.log[self.ID].v.append(self.v)
-        base.time_stamps[self.ID] = elps_time
-        self.log.sat_time_stamps.append(elps_time)
+        if self.z > -0.5:
+            # Upload
+            base.log[self.ID].x.append(self.x)
+            base.log[self.ID].y.append(self.y)
+            base.log[self.ID].z.append(self.z)
+            base.log[self.ID].v.append(self.v)
+            base.time_stamps[self.ID] = elps_time
+            self.log.sat_time_stamps.append(elps_time)
 
     def sat_down(self, base, swarm_size, elps_time):
-        # Download
-        for i in range(swarm_size):
-            if i != self.ID:
-                # If basestation log is not empty
-                if base.log[i].x != []:
-                    # if the last time vehicle i communicated with self was before i communicated with base
-                    # i.e. if the data for vehicle i on the base station is newer than on self
-                    if self.time_stamps[i] < base.time_stamps[i] or elps_time == 0:
-                        # Download i data
-                        self.set_loc_pos(i, [base.log[i].x[-1], base.log[i].y[-1], base.log[i].z[-1]])
-                        # update last time self received data on vehicle i = when vehicle i communicated with basestation
-                        self.time_stamps[i] = base.time_stamps[i]
-                        # Add vehicle to loc_vehicles, as only < is used in the condition, if self.time_stamp = basestation.timestamp
-                        # No download occurs as there was been no update acc or sat from vehicle i since the last surface.
-                        if self.loc_vehicles[i] == 0:
-                            self.loc_vehicles[i] = 1
-                    # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
-                    elif self.time_stamps[i] == base.time_stamps[i]:
-                        if self.loc_vehicles[i] == 1:
-                            self.loc_vehicles[i] = 0
-                    # if self.time_stamps[i] > base.time_stamps the vehicle has communicated underwater and the data is newer than that on the base station
+        if self.z > -0.5:
+            # Download
+            for i in range(swarm_size):
+                if i != self.ID:
+                    # If basestation log is not empty
+                    if base.log[i].x != []:
+                        # if the last time vehicle i communicated with self was before i communicated with base
+                        # i.e. if the data for vehicle i on the base station is newer than on self
+                        if self.time_stamps[i] < base.time_stamps[i] or elps_time == 0:
+                            # Download i data
+                            self.set_loc_pos(i, [base.log[i].x[-1], base.log[i].y[-1], base.log[i].z[-1]])
+                            # update last time self received data on vehicle i = when vehicle i communicated with basestation
+                            self.time_stamps[i] = base.time_stamps[i]
+                            # Add vehicle to loc_vehicles, as only < is used in the condition, if self.time_stamp = basestation.timestamp
+                            # No download occurs as there was been no update acc or sat from vehicle i since the last surface.
+                            if self.loc_vehicles[i] == 0:
+                                self.loc_vehicles[i] = 1
+                        # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
+                        elif self.time_stamps[i] == base.time_stamps[i]:
+                            if self.loc_vehicles[i] == 1:
+                                self.loc_vehicles[i] = 0
+                        # if self.time_stamps[i] > base.time_stamps the vehicle has communicated underwater and the data is newer than that on the base station
 
 
     def time_checks(self, elps_time, config):

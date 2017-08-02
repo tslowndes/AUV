@@ -8,7 +8,6 @@ import numpy as np
 
 
 def test_range():
-
     AUV_A = Vehicle(0, 3, 10, 10, -10, 0)
     AUV_B = Vehicle(1, 3, 499, 0, -10, 0)
     AUV_C = Vehicle(2, 3, 998, 0, -10, 0)
@@ -66,7 +65,9 @@ def test_transmit(loc_1, loc_2, loc_3, expected):
     (50, -10, -10, (50,50))
 ])
 
-def test_sent_time(msg_time, time_1, time_2):
+def test_sent_time(msg_time, time_1, time_2, expected):
+    # Examines the condition of accepting messages based on the message timestamp
+    # and the timestamp of the corresponding data held by the AUV
     AUV_A = Vehicle(0, 3, 1, 1, -1, 0)
     AUV_B = Vehicle(1, 3, 50, 50, -1, 0)
     AUV_C = Vehicle(2, 3, 30, 50, -1, 0)
@@ -74,8 +75,6 @@ def test_sent_time(msg_time, time_1, time_2):
     config = sim_config('tests/config/sim_config.csv')
     achannel = V2V_comms(config)
 
-    # Because the timestamp on the message is 51, it will not be accepted by
-    # AUV_B but will be by AUV_C
     AUV_B.time_stamps[0] = time_1
     AUV_C.time_stamps[0] = time_2
 
@@ -83,7 +82,5 @@ def test_sent_time(msg_time, time_1, time_2):
     AUV_B.receive_acc_msg(achannel)
     AUV_C.receive_acc_msg(achannel)
 
-    # B Rejected and kept more recent data
     assert AUV_B.time_stamps[0] == expected[0]
-    # C Accepted more up to date data
     assert AUV_C.time_stamps[0] == expected[1]
