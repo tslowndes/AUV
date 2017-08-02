@@ -71,3 +71,25 @@ def test_reached_waypoint():
 
     assert AUV.state == 1
 
+# Expected - 0: accepts state, 1:errors
+@pytest.mark.parametrize("curr_state, desired_state, z, expected", [
+    (1, 0, -0.1, 0),
+    (2, 0, -0.1, 0),
+    (1, 0, -0.7, 1),
+    (2, 0, -0.7, 1),
+    (2, 1, -10, 1),
+    (2, 1, -4000, 1),
+    (2, 1, -0.1, 1)
+])
+
+def test_set_state(curr_state, desired_state, z, expected):
+    AUV = Vehicle(0, 1, 50, 50, -10, 0)
+    AUV.state = curr_state
+    AUV.z = z
+
+    if expected == 1:
+        with pytest.raises(Exception) as e_info:
+            AUV.set_state(desired_state)
+    else:
+        AUV.set_state(desired_state)
+        assert AUV.state == desired_state
