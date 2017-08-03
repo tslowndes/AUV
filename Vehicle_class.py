@@ -167,7 +167,6 @@ class Vehicle:
         pitch_rate = (self.pitch_demand - self.pitch)*exp(-1)
         if abs(pitch_rate) > self.config.max_pitch_rate:
             pitch_rate = (pitch_rate / abs(pitch_rate)) * self.config.max_pitch_rate
-
         self.set_pitch(self.pitch + (pitch_rate * time_step))
 
         #################################### CHANGES TO VEL ###############################################
@@ -231,17 +230,17 @@ class Vehicle:
         self.yaw_demand = yd
 
     def set_pitch(self, pitch):
-        if abs(pitch) > self.config.max_pitch:
+
+        if abs(pitch) > self.config.max_pitch and self.pitch != 0:
             self.pitch = (pitch / abs(pitch)) * self.config.max_pitch
         else:
             self.pitch = pitch
-
         # Recalculates vx,vy,vz
         self.set_v()
 
     def set_pitch_demand(self, pd):
         if abs(pd) > self.config.max_pitch:
-            self.pitch_demand = (self.pitch_demand / abs(self.pitch_demand)) * self.config.max_pitch
+            self.pitch_demand = (pd / abs(pd)) * self.config.max_pitch
         else:
             self.pitch_demand = pd
 
