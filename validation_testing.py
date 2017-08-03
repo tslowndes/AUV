@@ -1,13 +1,15 @@
 import sys
 ###################### USER FUNCTIONS ############################
 sys.path.insert(0, "../gen")
-from Base_Stn_class import Base_Station
+from Base_stn_class import Base_Station
 from Acc_channel_class import *
 from progress_bar import *
 from Vehicle_class import Vehicle
 from writing import write_proof
 from dist import dist
 from Config_class import *
+import os
+from shutil import copyfile
 
 def run_validation():
     configs = []
@@ -35,14 +37,14 @@ def prove_vel_behaviour(config):
     print_time(0)
     start_loc = [0, 0]
     start_yaw = 0
-    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw, config.time_step)
+    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
     AUV.waypoints = [[50000, 0, 0]]
     v_demands = [1.0,1.5,0.75,0.25,0.0]
 
     for v in v_demands:
         AUV.v_demand = v
         for elps_time in range(100):
-            AUV.go(0, config)
+            AUV.go(config)
 
     write_proof(AUV, config)
     print_time(1)
@@ -51,10 +53,10 @@ def prove_yaw_behaviour(config):
     print_time(0)
     start_loc = [0,0]
     start_yaw = 0
-    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw, config.time_step)
+    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
     AUV.waypoints = [[50,0,0],[50,50,0],[0,50,0],[0,0,0]]
     for elps_time in range(config.run_time):
-        AUV.go(0,config)
+        AUV.go(config)
         update_progress(elps_time, config.run_time)
     # Outputs results
     print('\nWriting Results')
@@ -69,7 +71,7 @@ def prove_dive_behaviour(config):
     start_yaws = np.random.randint(360, size=config.swarm_size)
     Base = Base_Station(config.swarm_size)
     Acc_comms = V2V_comms(config)
-    Swarm = [Vehicle(0, config.swarm_size, start_locs[0][0], start_locs[1][0], 0, start_yaws[0], config.time_step)]
+    Swarm = [Vehicle(0, config.swarm_size, start_locs[0][0], start_locs[1][0], 0, start_yaws[0])]
     print_time(0)
 
     # Initial communication step to populate data on subs
@@ -107,8 +109,8 @@ def prove_dive_behaviour(config):
 
             AUV.time_checks(elps_time, config)
             if target != []:
-                AUV.set_waypoint(target, elps_time, config)
-            AUV.go(0, config)
+                AUV.set_waypoint(target, config)
+            AUV.go(config)
 
         update_progress(elps_time, config.run_time)
 
@@ -117,4 +119,4 @@ def prove_dive_behaviour(config):
     write_proof(Swarm[0], config)
     print_time(1)
 
-if __name__=='main': run_validation()
+run_validation()
