@@ -278,7 +278,7 @@ class Vehicle:
         elif self.state == 2 and s == 1:
             print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
             raise
-        
+
         self.state = s
 
     ####################################################################################################################
