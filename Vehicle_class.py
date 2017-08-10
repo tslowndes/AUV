@@ -30,13 +30,21 @@ class Vehicle:
 
     def sat_comms(self, base, swarm_size, elps_time):
         if self.z > -0.5 and self.sat_commd == 0:
+            self.set_v_demand(0)
+            self.set_pitch_demand(40)
+
+        if self.pitch == 40 and self.v == 0 and self.z > -0.5 and self.sat_commd == 0:
             self.sat_up(base, elps_time)
             self.sat_down(base, swarm_size, elps_time)
-            self.set_state(0)
+            self.set_state(3)
             self.t_state_change = elps_time
             self.sat_commd = 1
 
-        elif self.z < -0.5 and self.sat_commd == 1:
+        if self.sat_commd == 1 and elps_time - self.t_state_change >= 180 / config.time_step:
+            self.set_state(0)
+            self.t_state_change = elps_time
+
+        if self.z < -0.5 and self.sat_commd == 1:
             self.sat_commd = 0
 
     def sat_up(self, base, elps_time):
@@ -147,6 +155,8 @@ class Vehicle:
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - curr_wayp[2]) / dist_xy))))
 
+        self.set_v_demand(self.max_v / 2)
+        
     # Models the reaction of the AUV to changes in demand with simple exponentials
     def plant(self, time_step):
         #################################### CHANGES TO YAW ###############################################
@@ -206,8 +216,9 @@ class Vehicle:
 
     def go(self, config, elps_time = 0):
         # Have to skip move_to_waypoint in velocity validation.
-        if config.sim_sub_type != 3:
-            self.move_to_waypoint()
+        if self.state != 3:
+            if config.sim_sub_type != 3:
+                self.move_to_waypoint()
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
         self.payload(elps_time, config.time_step)
