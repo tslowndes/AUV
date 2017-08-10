@@ -82,34 +82,32 @@ def prove_dive_behaviour(config):
     check = 0
     # MAIN LOOP
     for elps_time in range(config.run_time):
+
         Swarm[comms_AUV].send_acc_msg(Acc_comms, elps_time, config, Swarm)
         for AUV in Swarm:
             # Performs communication, sat if at surface, recieves acc if submerged
-            AUV.sat_comms(Base, config.swarm_size, elps_time)
+            AUV.sat_comms(Base, config, elps_time)
             AUV.receive_acc_msg(Acc_comms)
 
         for AUV in Swarm:
             target = []
             ### Sets initial waypoint
             if elps_time == 0:
-                target = [AUV.x + 50, AUV.y + 50]
+                AUV.waypoints = [[AUV.x + 50, AUV.y + 50, -50]]
             else:
-                if AUV.state == 0:
-                    dist_targ = dist([AUV.x, AUV.y, AUV.z], AUV.waypoints[AUV.current_waypoint], 3)
-                elif AUV.state == 1:
-                    dist_targ = dist([AUV.x, AUV.y, AUV.z], AUV.waypoints[AUV.current_waypoint], 3)
+                dist_targ = dist([AUV.x, AUV.y, AUV.z], AUV.waypoints[AUV.current_waypoint], 3)
                 ### Prevents waypoint being reached to demonstrate time limit underwater
-                if dist_targ < 10 and elps_time < 1200*0.5:
-                    target = [AUV.waypoints[AUV.current_waypoint][0] + 50, AUV.waypoints[AUV.current_waypoint][1] + 50]
+                if dist_targ < 10 and elps_time - AUV.t_state_change < 1200*0.5 and elps_time < 1500:
+                    AUV.waypoints = [[AUV.waypoints[AUV.current_waypoint][0] + 50, AUV.waypoints[AUV.current_waypoint][1] + 50, -50]]
+
                 ### On the second surface (2 at start and 1 after surfacing from first dive = 3 sat comms)
-                if len(AUV.log.sat_time_stamps) == 3 and AUV.state == 0 and check == 0:
+                if len(AUV.log.sat_time_stamps) == 2 and AUV.z > -0.5 and check == 0:
                     # Set a reachable waypoint at depth
                     check = 1
-                    target = [AUV.x + 50, AUV.y + 50]
+                    AUV.waypoints = [[AUV.x + 50, AUV.y + 50, -50]]
 
             AUV.time_checks(elps_time, config)
-            if target != []:
-                AUV.set_waypoint(target, config)
+
             AUV.go(config)
 
         update_progress(elps_time, config.run_time)

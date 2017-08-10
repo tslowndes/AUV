@@ -28,19 +28,21 @@ class Vehicle:
                 self.loc_yaw[msg.ID] = msg.yaw
                 self.loc_pitch[msg.ID] = msg.pitch
 
-    def sat_comms(self, base, swarm_size, elps_time):
+    def sat_comms(self, base, config, elps_time):
         if self.z > -0.5 and self.sat_commd == 0:
             self.set_v_demand(0)
-            self.set_pitch_demand(40)
-
-        if self.pitch == 40 and self.v == 0 and self.z > -0.5 and self.sat_commd == 0:
-            self.sat_up(base, elps_time)
-            self.sat_down(base, swarm_size, elps_time)
             self.set_state(3)
+
+        if self.v < 0.001 and self.state == 3 and self.z > -0.5:
+            self.set_pitch_demand(self.config.max_pitch)
+
+        if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0:
+            self.sat_up(base, elps_time)
+            self.sat_down(base, config.swarm_size, elps_time)
             self.t_state_change = elps_time
             self.sat_commd = 1
 
-        if self.sat_commd == 1 and elps_time - self.t_state_change >= 180 / config.time_step:
+        if self.state == 3 and self.sat_commd == 1 and elps_time - self.t_state_change >= 180 / config.time_step:
             self.set_state(0)
             self.t_state_change = elps_time
 
@@ -90,7 +92,7 @@ class Vehicle:
             self.waypoints = [self.waypoints[self.current_waypoint][0:2]+[0]]
             self.current_waypoint = 0
 
-        if elps_time - self.t_state_change > config.t_uw * 0.9:
+        if elps_time - self.t_state_change > config.t_uw * 0.9 and self.state != 3:
             # Surface NOW
             self.set_state(2)
             self.waypoints = [[self.x, self.y, 0]]
@@ -117,26 +119,16 @@ class Vehicle:
                     self.waypoints = [target + [0]]
 
 
+
     def move_to_waypoint(self):
         curr_wayp = self.waypoints[self.current_waypoint]
-        dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
-        dist_mag = sqrt(sum(i**2 for i in dist_xyz))
+        dist_mag = dist([self.x, self.y, self.z], [curr_wayp[0], curr_wayp[1], curr_wayp[2]], 3)
         # If the AUV is within xm of the waypoint
-        if dist_mag < self.config.accept_rad and self.state != 2:
-            # If it isn't the last waypoint
-            if curr_wayp != self.waypoints[-1]:
-                # Load the next waypoint
-                self.current_waypoint = self.current_waypoint + 1
-                curr_wayp = self.waypoints[self.current_waypoint]
-                # update distance variables for new waypoint
-                dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
-            else:
-                # Set waypoint for vehicle to surface
-                self.set_state(1)
-                self.waypoints = [[curr_wayp[0], curr_wayp[1], 0]]
-                self.current_waypoint = 0
-                curr_wayp = self.waypoints[self.current_waypoint]
-                dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
+        if dist_mag < self.config.accept_rad and self.state == 0:
+            self.next_waypoint()
+        curr_wayp = self.waypoints[self.current_waypoint]
+        # update distance variables for new waypoint
+        dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
 
         # if self needs to move in the xy plane
         if self.x != curr_wayp[0] or self.y != curr_wayp[1]:
@@ -155,8 +147,19 @@ class Vehicle:
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - curr_wayp[2]) / dist_xy))))
 
-        self.set_v_demand(self.max_v / 2)
-        
+        self.set_v_demand(self.config.max_v / 2)
+
+    def next_waypoint(self):
+        if self.current_waypoint != len(self.waypoints)-1:
+            # Load the next waypoint
+            self.current_waypoint = self.current_waypoint + 1
+        else:
+            # Set waypoint for vehicle to surface
+            self.set_state(1)
+            self.waypoints = [[self.x, self.y, 0]]
+            self.current_waypoint = 0
+
+
     # Models the reaction of the AUV to changes in demand with simple exponentials
     def plant(self, time_step):
         #################################### CHANGES TO YAW ###############################################
@@ -242,7 +245,7 @@ class Vehicle:
 
     def set_pitch(self, pitch):
 
-        if abs(pitch) > self.config.max_pitch and self.pitch != 0:
+        if abs(pitch) > self.config.max_pitch:
             self.pitch = (pitch / abs(pitch)) * self.config.max_pitch
         else:
             self.pitch = pitch
@@ -279,11 +282,11 @@ class Vehicle:
         self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z])) ** 2))
 
     def set_state(self, s):
-        if self.state == 1 and s == 0 and self.z < -0.5:
-            print('INVALID STATE CHANGE: Attempted to move from surfacing to diving at z %f m' % self.z)
+        if self.state == 1 and s == 0:
+            print('INVALID STATE CHANGE: Attempted to move from surfacing to diving')
             raise
-        elif self.state == 2 and s == 0 and self.z < -0.5:
-            print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving at z %f m' % self.z)
+        elif self.state == 2 and s == 0:
+            print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving')
             raise
         elif self.state == 2 and s == 1:
             print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
@@ -308,6 +311,7 @@ class Vehicle:
         self.log.x_demand.append(self.waypoints[self.current_waypoint][0])
         self.log.y_demand.append(self.waypoints[self.current_waypoint][1])
         self.log.z_demand.append(self.waypoints[self.current_waypoint][2])
+        self.log.state.append(self.state)
 
     def __del__(self):
         pass

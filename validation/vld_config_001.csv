@@ -2,7 +2,7 @@ sim_type,1
 sim_sub_type,1
 no,1
 nd,3
-run_time,2000
+run_time,4000
 time_step,0.5
 feature_monitoring,0
 feature_move,0
