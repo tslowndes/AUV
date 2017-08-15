@@ -37,7 +37,7 @@ def prove_vel_behaviour(config):
     print_time(0)
     start_loc = [0, 0]
     start_yaw = 0
-    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
+    AUV = Vehicle(config, 0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
     AUV.waypoints = [[50000, 0, 0]]
     v_demands = [1.0,1.5,0.75,0.25,0.0]
 
@@ -53,7 +53,7 @@ def prove_yaw_behaviour(config):
     print_time(0)
     start_loc = [0,0]
     start_yaw = 0
-    AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
+    AUV = Vehicle(config, 0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
     AUV.waypoints = [[50,0,0],[50,50,0],[0,50,0],[0,0,0]]
     for elps_time in range(config.run_time):
         AUV.go(config, elps_time)
@@ -71,7 +71,7 @@ def prove_dive_behaviour(config):
     start_yaws = np.random.randint(360, size=config.swarm_size)
     Base = Base_Station(config.swarm_size)
     Acc_comms = V2V_comms(config)
-    Swarm = [Vehicle(0, config.swarm_size, start_locs[0][0], start_locs[1][0], 0, start_yaws[0])]
+    Swarm = [Vehicle(config, 0, config.swarm_size, start_locs[0][0], start_locs[1][0], 0, start_yaws[0])]
     print_time(0)
 
     # Initial communication step to populate data on subs

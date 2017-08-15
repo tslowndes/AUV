@@ -210,10 +210,10 @@ class Vehicle:
         pass
 
     def payload(self, config, t):
-        if config.feature_moving == 1:
+        if config.feature_move == 1:
             global_max_loc = [500 + (0.078 * t * config.time_step), 500]
         else:
-            global_max = [500,500]
+            global_max_loc = [500,500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
         if dist > 850:
             self.measurement = 0
@@ -227,7 +227,8 @@ class Vehicle:
                 self.move_to_waypoint()
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
-        self.payload(config.time_step, elps_time)
+        if config.feature_monitoring == 1:
+            self.payload(config, elps_time)
         self.logger(elps_time)
 
     ############################################### SETTERS ############################################################
@@ -320,7 +321,7 @@ class Vehicle:
     def __del__(self):
         pass
 
-    def __init__(self,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
+    def __init__(self, config,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
         # Loading configurable parameters
         self.config = sim_config('config/vehicle_config.csv')
         self.ID = i
@@ -338,7 +339,7 @@ class Vehicle:
         self.log = Log()
         self.state = 0
         self.t_state_change = 0
-        self.payload(0)
+        self.payload(config, 0)
         self.current_waypoint = 0
         self.waypoints = [[start_x,start_y,0]]
         # Swarm properties
@@ -353,7 +354,7 @@ class Vehicle:
         self.loc_measurements = np.zeros(Swarm_Size)
         self.set_loc_pos(self.ID, [self.x, self.y, self.z])
 
-        self.logger()
+        self.logger(0)
 
 
 
