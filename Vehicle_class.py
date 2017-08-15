@@ -210,7 +210,10 @@ class Vehicle:
         pass
 
     def payload(self, t, time_step=0.5):
-        global_max_loc = [500 + (0.078 * t * time_step), 500]
+        if config.feature_moving == 1:
+            global_max_loc = [500 + (0.078 * t * time_step), 500]
+        else:
+            global_max = [500,500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
         if dist > 850:
             self.measurement = 0
@@ -225,7 +228,7 @@ class Vehicle:
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
         self.payload(elps_time, config.time_step)
-        self.logger()
+        self.logger(elps_time)
 
     ############################################### SETTERS ############################################################
 
@@ -296,7 +299,7 @@ class Vehicle:
 
     ####################################################################################################################
 
-    def logger(self):
+    def logger(self, elps_time):
         self.log.x.append(self.x)
         self.log.y.append(self.y)
         self.log.z.append(self.z)
@@ -312,6 +315,7 @@ class Vehicle:
         self.log.y_demand.append(self.waypoints[self.current_waypoint][1])
         self.log.z_demand.append(self.waypoints[self.current_waypoint][2])
         self.log.state.append(self.state)
+        self.log.time_uw.append(elps_time - self.t_state_change)
 
     def __del__(self):
         pass
