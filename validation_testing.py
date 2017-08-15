@@ -44,7 +44,7 @@ def prove_vel_behaviour(config):
     for v in v_demands:
         AUV.v_demand = v
         for elps_time in range(100):
-            AUV.go(config)
+            AUV.go(config, elps_time)
 
     write_proof(AUV, config)
     print_time(1)
@@ -56,7 +56,7 @@ def prove_yaw_behaviour(config):
     AUV = Vehicle(0, config.swarm_size, start_loc[0], start_loc[1], 0, start_yaw)
     AUV.waypoints = [[50,0,0],[50,50,0],[0,50,0],[0,0,0]]
     for elps_time in range(config.run_time):
-        AUV.go(config)
+        AUV.go(config, elps_time)
         update_progress(elps_time, config.run_time)
     # Outputs results
     print('\nWriting Results')
@@ -108,7 +108,7 @@ def prove_dive_behaviour(config):
 
             AUV.time_checks(elps_time, config)
 
-            AUV.go(config)
+            AUV.go(config, elps_time)
 
         update_progress(elps_time, config.run_time)
 

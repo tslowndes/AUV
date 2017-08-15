@@ -209,9 +209,9 @@ class Vehicle:
         # Simulation of dead reckoning drift error
         pass
 
-    def payload(self, t, time_step=0.5):
+    def payload(self, config, t):
         if config.feature_moving == 1:
-            global_max_loc = [500 + (0.078 * t * time_step), 500]
+            global_max_loc = [500 + (0.078 * t * config.time_step), 500]
         else:
             global_max = [500,500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
@@ -227,7 +227,7 @@ class Vehicle:
                 self.move_to_waypoint()
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
-        self.payload(elps_time, config.time_step)
+        self.payload(config.time_step, elps_time)
         self.logger(elps_time)
 
     ############################################### SETTERS ############################################################
