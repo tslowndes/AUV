@@ -81,6 +81,9 @@ def prove_dive_behaviour(config):
         AUV.sat_down(Base, config.swarm_size, 0)
     check = 0
     # MAIN LOOP
+
+    AUV.waypoints = [[400,0,-50], [500, 0, 0], [550, 0, -50]]
+
     for elps_time in range(config.run_time):
 
         Swarm[comms_AUV].send_acc_msg(Acc_comms, elps_time, config, Swarm)
@@ -90,21 +93,6 @@ def prove_dive_behaviour(config):
             AUV.receive_acc_msg(Acc_comms)
 
         for AUV in Swarm:
-            target = []
-            ### Sets initial waypoint
-            if elps_time == 0:
-                AUV.waypoints = [[AUV.x + 50, AUV.y + 50, -50]]
-            else:
-                dist_targ = dist([AUV.x, AUV.y, AUV.z], AUV.waypoints[AUV.current_waypoint], 3)
-                ### Prevents waypoint being reached to demonstrate time limit underwater
-                if dist_targ < 10 and elps_time - AUV.t_state_change < 1200*0.5 and elps_time < 1500:
-                    AUV.waypoints = [[AUV.waypoints[AUV.current_waypoint][0] + 50, AUV.waypoints[AUV.current_waypoint][1] + 50, -50]]
-
-                ### On the second surface (2 at start and 1 after surfacing from first dive = 3 sat comms)
-                if len(AUV.log.sat_time_stamps) == 2 and AUV.z > -0.5 and check == 0:
-                    # Set a reachable waypoint at depth
-                    check = 1
-                    AUV.waypoints = [[AUV.x + 50, AUV.y + 50, -50]]
 
             AUV.time_checks(elps_time, config)
 
