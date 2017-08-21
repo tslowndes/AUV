@@ -13,7 +13,7 @@ from Acc_channel_class import *
 
 class Vehicle:
     def send_acc_msg(self, Acc_comms, elps_time, config, Swarm):
-        if self.z < -0.5 and config.sat_andor_acc == 1:
+        if self.state != 3:
             Acc_comms.msg = Msg(self.ID, elps_time, self.v, [self.x, self.y, self.z] , self.yaw, self.pitch)
             Acc_comms.transmit_msg(Swarm, config)
 
@@ -126,17 +126,19 @@ class Vehicle:
 
 
 
-    def move_to_waypoint(self, elps_time):
+    def move_to_waypoint(self, elps_time, config):
         curr_wayp = self.waypoints[0]
         dist_mag = dist([self.x, self.y, self.z], [curr_wayp[0], curr_wayp[1], curr_wayp[2]], 2)
 
         # If the AUV is within xm of the waypoint
-        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
-            if self.stashed_waypoints != []:
-                self.waypoints = self.stashed_waypoints
-                self.stashed_waypoints = []
-            else:
-                self.next_waypoint(elps_time)
+        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1:
+            if self.state == 0 or config.comms == 2:
+                if self.stashed_waypoints != []:
+                    self.waypoints = self.stashed_waypoints
+                    self.stashed_waypoints = []
+                else:
+                    self.next_waypoint(config, elps_time)
+
 
         curr_wayp = self.waypoints[0]
         # update distance variables for new waypoint
@@ -161,12 +163,16 @@ class Vehicle:
 
         self.set_v_demand(self.config.max_v / 2)
 
-    def next_waypoint(self, elps_time):
+    def next_waypoint(self, config, elps_time):
         self.waypoints.pop(0)
         if self.waypoints == []:
-            # Set waypoint for vehicle to surface
-            self.set_state(1, elps_time)
-            self.waypoints = [[self.x, self.y, 0]]
+            if self.state == 1 or self.state == 2:
+                self.set_state(0, elps_time)
+                self.waypoints = [[self.x, self.y, config.dive_depth]]
+            elif self.state == 0:
+                # Set waypoint for vehicle to surface
+                self.set_state(1, elps_time)
+                self.waypoints = [[self.x, self.y, 0]]
 
 
     # Models the reaction of the AUV to changes in demand with simple exponentials
@@ -233,7 +239,7 @@ class Vehicle:
         # Have to skip move_to_waypoint in velocity validation.
         if self.state != 3:
             if config.sim_sub_type != 3:
-                self.move_to_waypoint(elps_time)
+                self.move_to_waypoint(elps_time, config)
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
         if config.feature_monitoring == 1:
@@ -295,15 +301,15 @@ class Vehicle:
         self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z])) ** 2))
 
     def set_state(self, s, elps_time):
-        if self.state == 1 and s == 0:
-            print('INVALID STATE CHANGE: Attempted to move from surfacing to diving')
-            raise
-        elif self.state == 2 and s == 0:
-            print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving')
-            raise
-        elif self.state == 2 and s == 1:
-            print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
-            raise
+        # if self.state == 1 and s == 0:
+        #     print('INVALID STATE CHANGE: Attempted to move from surfacing to diving')
+        #     raise
+        # elif self.state == 2 and s == 0:
+        #     print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving')
+        #     raise
+        # elif self.state == 2 and s == 1:
+        #     print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
+        #     raise
 
         if self.state != 0 and s != 2:
             self.t_state_change = elps_time
