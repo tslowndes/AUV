@@ -21,7 +21,7 @@ class Vehicle:
         if Acc_comms.receive_msg[self.ID] == 1:
             msg = Acc_comms.msg
             self.loc_vehicles[msg.ID] = 1
-            if msg.sent_time > self.time_stamps[msg.ID]: #[1]
+            if msg.sent_time >= self.time_stamps[msg.ID]: #[1]
                 self.time_stamps[msg.ID] = msg.sent_time
                 self.loc_v[msg.ID] = msg.v
                 self.set_loc_pos(msg.ID, msg.pos)
