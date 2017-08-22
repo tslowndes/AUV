@@ -29,24 +29,35 @@ class Vehicle:
                 self.loc_pitch[msg.ID] = msg.pitch
 
     def sat_comms(self, base, config, elps_time):
-        if self.z > -0.5 and self.sat_commd == 0:
-            self.set_v_demand(0)
-            self.set_state(3, elps_time)
+        if config.comms != 2:
+            if self.sat_commd == 0:
+                if self.z > -0.5 and self.sat_commd == 0 and self.state != 3:
+                    self.set_v_demand(0)
+                    self.set_state(3, elps_time)
 
+                if self.v < 0.001 and self.state == 3 and self.z > -0.5:
+                    self.set_pitch_demand(self.config.max_pitch)
 
-        if self.v < 0.001 and self.state == 3 and self.z > -0.5:
-            self.set_pitch_demand(self.config.max_pitch)
+                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0:
+                    self.sat_up(base, elps_time)
+                    self.sat_down(config, base, config.swarm_size, elps_time)
+                    self.sat_commd = 1
 
-        if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0:
-            self.sat_up(base, elps_time)
-            self.sat_down(base, config.swarm_size, elps_time)
-            self.sat_commd = 1
+            if self.state == 3 and self.sat_commd == 1 and (elps_time - self.log.sat_time_stamps[-1]) >= config.t_sat / config.time_step:
+                self.set_state(0, elps_time)
 
-        if self.state == 3 and self.sat_commd == 1 and (elps_time - self.log.sat_time_stamps[-1]) >= 180 / config.time_step:
-            self.set_state(0, elps_time)
+        else:
+            if self.z > -0.5 and self.sat_commd == 0:
+                self.set_state(3, elps_time)
+                self.sat_up(base, elps_time)
+                self.sat_down(config, base, config.swarm_size, elps_time)
+                self.sat_commd = 1
+                self.set_state(0, elps_time)
 
         if self.z < -0.5 and self.sat_commd == 1:
             self.sat_commd = 0
+
+
 
     def sat_up(self, base, elps_time):
         if self.z > -0.5:
@@ -58,13 +69,14 @@ class Vehicle:
             base.time_stamps[self.ID] = elps_time
             self.log.sat_time_stamps.append(elps_time)
 
-    def sat_down(self, base, swarm_size, elps_time):
+    def sat_down(self, config, base, swarm_size, elps_time):
         if self.z > -0.5:
             # Download
             for i in range(swarm_size):
                 if i != self.ID:
                     # If basestation log is not empty
                     if base.log[i].x != []:
+
                         # if the last time vehicle i communicated with self was before i communicated with base
                         # i.e. if the data for vehicle i on the base station is newer than on self
                         if self.time_stamps[i] < base.time_stamps[i] or elps_time == 0:
@@ -77,7 +89,9 @@ class Vehicle:
                             if self.loc_vehicles[i] == 0:
                                 self.loc_vehicles[i] = 1
                         # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
-                        elif self.time_stamps[i] == base.time_stamps[i]:
+                        # config.comms = 0 = sat only case however because all the AUVs dive in order the first one surfaces, checks the
+                        # base and its got all the same info as before hence the AUV thinks all the others have died.
+                        elif self.time_stamps[i] == base.time_stamps[i] and config.comms != 0:
                             if self.loc_vehicles[i] == 1:
                                 self.loc_vehicles[i] = 0
                         # if self.time_stamps[i] > base.time_stamps the vehicle has communicated underwater and the data is newer than that on the base station
@@ -85,7 +99,7 @@ class Vehicle:
 
     def time_checks(self, elps_time, config):
 
-        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.state == 0:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.5:
             self.set_state(1, elps_time)
             # if waypoint at depth
             if self.waypoints[0][2] != 0:
@@ -116,13 +130,17 @@ class Vehicle:
                 dive_y = (target[1] - self.y) * (config.dive_dist / dist_to_target)
                 if self.state == 0:
                     self.waypoints = [[self.x + (dive_x), self.y + (dive_y), config.dive_depth]]
+                    self.stashed_waypoints = []
                 elif self.state == 1:
                     self.waypoints = [[self.x + (dive_x), self.y + (dive_y), 0]]
+                    self.stashed_waypoints = []
             else:
                 if self.state == 0:
                     self.waypoints = [target + [config.dive_depth]]
+                    self.stashed_waypoints = []
                 elif self.state == 1:
                     self.waypoints = [target + [0]]
+                    self.stashed_waypoints = []
 
 
 
@@ -131,13 +149,12 @@ class Vehicle:
         dist_mag = dist([self.x, self.y, self.z], [curr_wayp[0], curr_wayp[1], curr_wayp[2]], 2)
 
         # If the AUV is within xm of the waypoint
-        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1:
-            if self.state == 0 or config.comms == 2:
-                if self.stashed_waypoints != []:
-                    self.waypoints = self.stashed_waypoints
-                    self.stashed_waypoints = []
-                else:
-                    self.next_waypoint(config, elps_time)
+        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
+            if self.stashed_waypoints != []:
+                self.waypoints = self.stashed_waypoints
+                self.stashed_waypoints = []
+            else:
+                self.next_waypoint(config, elps_time)
 
 
         curr_wayp = self.waypoints[0]
