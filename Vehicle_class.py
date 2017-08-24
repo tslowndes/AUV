@@ -99,7 +99,7 @@ class Vehicle:
 
     def time_checks(self, elps_time, config):
 
-        if self.get_t_uw(elps_time) > config.t_uw * 0.5:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.set_state != 2:
             self.set_state(1, elps_time)
             # if waypoint at depth
             if self.waypoints[0][2] != 0:
@@ -108,7 +108,7 @@ class Vehicle:
                                    self.waypoints[0][1],
                                    0]]
 
-        elif self.get_t_uw(elps_time) > config.t_uw * 0.9:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.9:
             self.set_state(2, elps_time)
             if self.stashed_waypoints != []:
                 self.waypoints = [[self.x, self.y, 0]]
