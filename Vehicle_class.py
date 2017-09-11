@@ -54,8 +54,14 @@ class Vehicle:
                 self.sat_commd = 1
                 self.set_state(0, elps_time)
 
-        if self.z < -0.5 and self.sat_commd == 1:
-            self.sat_commd = 0
+        # if self.state != 3:
+        if config.sim_type != 0 and config.sim_sub_type != 1:
+            if self.z < -0.5 and self.sat_commd == 1:
+                self.sat_commd = 0
+        # elif (config.sim_type == 0
+        #         and config.sim_sub_type == 1
+        #         and (elps_time - (self.log.sat_time_stamps[-1] + (config.t_sat/config.time_step))) >= config.t_uw):
+        #     self.sat_commd = 0
 
 
 
@@ -99,8 +105,11 @@ class Vehicle:
 
     def time_checks(self, elps_time, config):
 
-        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.set_state != 2:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.state != 2:
             self.set_state(1, elps_time)
+            if config.sim_type == 0 and config.sim_sub_type == 1:
+                self.sat_commd = 0
+
             # if waypoint at depth
             if self.waypoints[0][2] != 0:
                 self.stashed_waypoints = self.waypoints
@@ -110,6 +119,7 @@ class Vehicle:
 
         if self.get_t_uw(elps_time) > config.t_uw * 0.9:
             self.set_state(2, elps_time)
+
             if self.stashed_waypoints != []:
                 self.waypoints = [[self.x, self.y, 0]]
             else:
