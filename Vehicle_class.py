@@ -54,15 +54,9 @@ class Vehicle:
                 self.sat_commd = 1
                 self.set_state(0, elps_time)
 
-        # if self.state != 3:
         if config.sim_type != 0 and config.sim_sub_type != 1:
             if self.z < -0.5 and self.sat_commd == 1:
                 self.sat_commd = 0
-        # elif (config.sim_type == 0
-        #         and config.sim_sub_type == 1
-        #         and (elps_time - (self.log.sat_time_stamps[-1] + (config.t_sat/config.time_step))) >= config.t_uw):
-        #     self.sat_commd = 0
-
 
 
     def sat_up(self, base, elps_time):
@@ -215,7 +209,7 @@ class Vehicle:
         if abs(yaw_rate) > self.config.max_yaw_rate:
             yaw_rate = (yaw_rate / abs(yaw_rate)) * self.config.max_yaw_rate
 
-        self.set_yaw(self.yaw + (yaw_rate * time_step))
+        self.set_yaw(self.yaw + ((self.v / self.max_v) * yaw_rate * time_step))
 
         #################################### CHANGES TO PITCH ###############################################
 
