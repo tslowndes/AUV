@@ -209,7 +209,7 @@ class Vehicle:
         if abs(yaw_rate) > self.config.max_yaw_rate:
             yaw_rate = (yaw_rate / abs(yaw_rate)) * self.config.max_yaw_rate
 
-        self.set_yaw(self.yaw + ((self.v / self.max_v) * yaw_rate * time_step))
+        self.set_yaw(self.yaw + ((self.v / self.config.max_v) * yaw_rate * time_step))
 
         #################################### CHANGES TO PITCH ###############################################
 
