@@ -1,15 +1,21 @@
-sim_type, 1
-sim_sub_type, 2
-no, 2
-nd, 3
-run_time, 2000
-time_step, 0.5
-feature_monitoring, 0
-feature_move, 0
-swarm_size, 1
-sat_andor_acc, 1
-comms_range, 500
-desired_d, 250
-dive_depth, -50
-dive_dist, 50
-t_uw, 1200
+comms,0
+comms_range,500
+config_param, value
+desired_d,50
+dive_depth,0
+dive_dist,200
+feature_monitoring,0
+feature_move,0
+nd,3
+no,1
+repeats,1
+run_time,10000
+seed,"[0, 1, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57]"
+sim_sub_type,2
+sim_type,1
+swarm_size,1
+t_acc,0.5
+t_sat,180
+t_surface,60
+t_uw,240
+time_step,0.5

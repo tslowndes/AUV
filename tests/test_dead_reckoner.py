@@ -25,8 +25,9 @@ import numpy as np
 
 def test_pitch_yaw(z, yaw, pitch, expected):
     init_x, init_y = 0,0
-    # (self,i, Swarm_Size, start_x, start_y, start_z, start_yaw)
-    AUV = Vehicle(0, 1, init_x, init_y, z, yaw)
+    config = sim_config('config/sim_config.csv')
+    # (self, config, i, Swarm_Size, start_x, start_y, start_z, start_yaw)
+    AUV = Vehicle(config, 0, 1, init_x, init_y, z, yaw)
     config = sim_config('config/sim_config.csv')
     AUV.set_yaw(yaw)
     AUV.set_pitch(pitch)

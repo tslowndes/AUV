@@ -3,10 +3,7 @@ sys.path.insert(0, "../gen")
 from math import sqrt, atan, exp, cos, sin, radians, degrees, ceil, floor, pi, isnan
 from numpy import abs
 import numpy as np
-
-from find_dir import find_dir
 from log import Log
-from dist import dist
 from Config_class import *
 from Acc_channel_class import *
 
@@ -14,7 +11,7 @@ from Acc_channel_class import *
 class Vehicle:
     def send_acc_msg(self, Acc_comms, elps_time, config, Swarm):
         if self.state != 3:
-            Acc_comms.msg = Msg(self.ID, elps_time, self.v, [self.x, self.y, self.z] , self.yaw, self.pitch)
+            Acc_comms.msg = Msg(self.ID, elps_time, self.v, [self.lon, self.lat, self.z] , self.yaw, self.pitch)
             Acc_comms.transmit_msg(Swarm, config)
 
     def receive_acc_msg(self, Acc_comms):
@@ -62,8 +59,8 @@ class Vehicle:
     def sat_up(self, base, elps_time):
         if self.z > -0.5:
             # Upload
-            base.log[self.ID].x.append(self.x)
-            base.log[self.ID].y.append(self.y)
+            base.log[self.ID].lon.append(self.lon)
+            base.log[self.ID].lat.append(self.lat)
             base.log[self.ID].z.append(self.z)
             base.log[self.ID].v.append(self.v)
             base.time_stamps[self.ID] = elps_time
@@ -75,7 +72,7 @@ class Vehicle:
             for i in range(swarm_size):
                 if i != self.ID:
                     # If basestation log is not empty
-                    if base.log[i].x != []:
+                    if base.log[i].lon != []:
 
                         # if the last time vehicle i communicated with self was before i communicated with base
                         # i.e. if the data for vehicle i on the base station is newer than on self
@@ -115,28 +112,28 @@ class Vehicle:
             self.set_state(2, elps_time)
 
             if self.stashed_waypoints != []:
-                self.waypoints = [[self.x, self.y, 0]]
+                self.waypoints = [[self.lon, self.lat, 0]]
             else:
                 # The only reason it would == [] is if the waypoint when the time was exceeded was at the surface
                 # The first waypoint in the stashed waypoint will now be a surface waypoint
                 # Hence a waypoint at depth needs to be inserted at the start to avoid the AUV trundelling across the surface
-                self.stashed_waypoints = [[(self.x + self.waypoints[0][0])/2, (self.y + self.waypoints[0][1])/2, config.dive_depth]] + self.waypoints
-                self.waypoints = [[self.x, self.y, 0]]
+                self.stashed_waypoints = [[(self.lon + self.waypoints[0][0])/2, (self.lat + self.waypoints[0][1])/2, config.dive_depth]] + self.waypoints
+                self.waypoints = [[self.lon, self.lat, 0]]
 
     def set_waypoint(self, target, config):
         if self.state != 2:
             # If the distance to a waypoint > the set maximum distance for a single dive, a dive of dive_dist (xy) is perfromed in
             # the same direction of the original waypoint. This means the AUV has a chance of reaching depth instead of diving at
             # a shallow angle to a waypoint multiple km away.
-            dist_to_target = dist([self.x, self.y], target, 2)
+            dist_to_target =  self.dist([self.lon, self.lat], (target[0], target[1]))
             if dist_to_target > config.dive_dist:
-                dive_x = (target[0] - self.x) * (config.dive_dist / dist_to_target)
-                dive_y = (target[1] - self.y) * (config.dive_dist / dist_to_target)
+                dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
+                dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
                 if self.state == 0:
-                    self.waypoints = [[self.x + (dive_x), self.y + (dive_y), config.dive_depth]]
+                    self.waypoints = [[self.lon + (dive_lon), self.lat + (dive_laty), config.dive_depth]]
                     self.stashed_waypoints = []
                 elif self.state == 1:
-                    self.waypoints = [[self.x + (dive_x), self.y + (dive_y), 0]]
+                    self.waypoints = [[self.lon + (dive_lon), self.lat + (dive_lat), 0]]
                     self.stashed_waypoints = []
             else:
                 if self.state == 0:
@@ -149,8 +146,7 @@ class Vehicle:
 
 
     def move_to_waypoint(self, elps_time, config):
-        curr_wayp = self.waypoints[0]
-        dist_mag = dist([self.x, self.y, self.z], [curr_wayp[0], curr_wayp[1], curr_wayp[2]], 2)
+        dist_mag =  self.dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
 
         # If the AUV is within xm of the waypoint
         if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
@@ -160,27 +156,22 @@ class Vehicle:
             else:
                 self.next_waypoint(config, elps_time)
 
-
-        curr_wayp = self.waypoints[0]
-        # update distance variables for new waypoint
-        dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
-
         # if self needs to move in the xy plane
-        if self.x != curr_wayp[0] or self.y != curr_wayp[1]:
+        if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
             # Set yaw demand to the direction of the vector from current position to waypoint
-            self.set_yaw_demand(find_dir(self.x, self.y , curr_wayp[0], curr_wayp[1]))
+            self.set_yaw_demand(self.find_dir((self.lon, self.lat) , (self.waypoints[0][0], self.waypoints[0][1])))
 
         # If depth requirement is not met
-        if self.z != curr_wayp[2]:
+        if self.z != self.waypoints[0][2]:
             # Work out distance in xy plane to work out sufficient dive angle
-            dist_xy = sqrt(dist_xyz[0]**2 + dist_xyz[1]**2)
+            dist_xy =  self.dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
             # when dist_xy = 0, errors
             if dist_xy == 0 and self.z > curr_wayp[2]:
                 self.set_pitch_demand(self.config.max_pitch)
             elif dist_xy == 0 and self.z < curr_wayp[2]:
                 self.set_pitch_demand(-self.config.max_pitch)
             else:
-                self.set_pitch_demand(degrees(atan(((self.z - curr_wayp[2]) / dist_xy))))
+                self.set_pitch_demand(degrees(atan(((self.z - self.waypoints[0][2]) / dist_xy))))
 
         self.set_v_demand(self.config.max_v / 2)
 
@@ -189,11 +180,11 @@ class Vehicle:
         if self.waypoints == []:
             if self.state == 1 or self.state == 2:
                 self.set_state(0, elps_time)
-                self.waypoints = [[self.x, self.y, config.dive_depth]]
+                self.waypoints = [[self.lon, self.lat, config.dive_depth]]
             elif self.state == 0:
                 # Set waypoint for vehicle to surface
                 self.set_state(1, elps_time)
-                self.waypoints = [[self.x, self.y, 0]]
+                self.waypoints = [[self.lon, self.lat, 0]]
 
 
     # Models the reaction of the AUV to changes in demand with simple exponentials
@@ -228,18 +219,46 @@ class Vehicle:
 
         self.set_v(self.v + (acc * time_step))
 
-    def dead_reckoner(self, time_step):
-        self.prev_x = self.x
-        self.prev_y = self.y
-
-        self.x = self.x + (self.vx * time_step)
-        self.y = self.y + (self.vy * time_step)
-        self.z = self.z - (self.vz * time_step)
+    def dead_reckoner(self, config):
+        self.inc_lat(config)
+        self.inc_lon(config)
+        self.z = self.z - (self.vz * config.time_step)
 
         if self.z > 0:
             self.z = 0
 
-        self.set_loc_pos(self.ID, [self.x, self.y, self.z])
+        self.set_loc_pos(self.ID, [self.lon, self.lat, self.z])
+
+    def inc_lat(self, config):
+        dS = self.vy * config.time_step
+        dlat = dS / 111111 # Approx length of 1 degree of latitude in m
+        self.lat = self.lat + dlat
+
+    def inc_lon(self, config):
+        m_per_deglon = np.cos(self.lat) * 111111
+        dlon = self.vx * config.time_step * m_per_deglon
+        self.lon = self.lon + dlon
+
+    def dist(self, pos1, pos2):
+        # calculates distance between two lat lon points using the haversine formula
+        lon1, lat1 = np.radians(pos1)
+        lon2, lat2 = np.radians(pos2)
+        # haversine formula
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+        c = 2 * np.arcsin(np.sqrt(a))
+        r = 6378.137 * 1000 # Radius of earth in kilometers
+        return c * r
+
+    def find_dir(self, pos1, pos2):
+        lon1, lat1 = np.radians(pos1)
+        lon2, lat2 = np.radians(pos2)
+        X = np.cos(lat2) * np.sin(abs(lon1 - lon2))
+        Y = (np.cos(lat1) * np.sin(lat2)) - (np.sin(lat1) * np.cos(lat2) * np.cos(abs(lon1 - lon2)))
+        dir = np.arctan2(X, Y)
+        return np.degrees(dir)
+
 
     def actual_location(self, time_step):
         # Simulation of dead reckoning drift error
@@ -250,11 +269,11 @@ class Vehicle:
             global_max_loc = [500 + (0.078 * t * config.time_step), 500]
         else:
             global_max_loc = [500,500]
-        dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
-        if dist > 850:
+        dist2max = self.dist((self.lon, self.lat), (global_max_loc[0], global_max_loc[1]))
+        if dist2max > 850:
             self.measurement = 0
         else:
-            self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist) ** 2)) / (2 * (125 ** 2)))
+            self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist2max) ** 2)) / (2 * (125 ** 2)))
 
     def go(self, config, elps_time = 0):
         # Have to skip move_to_waypoint in velocity validation.
@@ -262,12 +281,12 @@ class Vehicle:
             if config.sim_sub_type != 3:
                 self.move_to_waypoint(elps_time, config)
         self.plant(config.time_step)
-        self.dead_reckoner(config.time_step)
+        self.dead_reckoner(config)
         if config.feature_monitoring == 1:
             self.payload(config, elps_time)
         self.logger(elps_time)
 
-    ############################################### SETTERS ############################################################
+    ############################################### SETTERS / GETTERS ############################################################
 
     def set_yaw(self, yaw):
         if yaw < 0:
@@ -319,7 +338,7 @@ class Vehicle:
 
     def set_loc_pos(self, ID, pos):
         self.loc_pos[ID] = pos
-        self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z])) ** 2))
+        self.loc_dist[ID] = self.dist((self.lon, self.lat), (pos[0], pos[1]))
 
     def set_state(self, s, elps_time):
         # if self.state == 1 and s == 0:
@@ -346,8 +365,8 @@ class Vehicle:
     ####################################################################################################################
 
     def logger(self, elps_time):
-        self.log.x.append(self.x)
-        self.log.y.append(self.y)
+        # self.log.x.append(self.x)
+        # self.log.y.append(self.y)
         self.log.z.append(self.z)
         self.log.v.append(self.v)
         self.log.yaw.append(self.yaw)
@@ -357,23 +376,27 @@ class Vehicle:
         self.log.pitch_demand.append(self.pitch_demand)
         self.log.loc_pos.append(np.copy(self.loc_pos))
         self.log.measurement.append(self.measurement)
-        self.log.x_demand.append(self.waypoints[0][0])
-        self.log.y_demand.append(self.waypoints[0][1])
+        self.log.lon_demand.append(self.waypoints[0][0])
+        self.log.lat_demand.append(self.waypoints[0][1])
         self.log.z_demand.append(self.waypoints[0][2])
         self.log.state.append(self.state)
         self.log.time_uw.append(self.get_t_uw(elps_time))
+        self.log.lat.append(self.lat)
+        self.log.lon.append(self.lon)
 
     def __del__(self):
         pass
 
-    def __init__(self, config,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
+    def __init__(self, config,i, Swarm_Size, start_lon, start_lat, start_z, start_yaw):
         # Loading configurable parameters
         self.config = sim_config('config/vehicle_config.csv')
         self.ID = i
         # Initialising
-        self.x = start_x
-        self.y = start_y
+        self.lat = start_lat
+        self.lon = start_lon
         self.z = start_z
+        # self.x = start_x
+        # self.y = start_y
         self.yaw = start_yaw        # Heading in degrees 0 is along +ve x axis
         self.pitch = 0              # +ve = Nose up (rise), -ve = Nose down (Dive)
         self.set_v(0.5)                # Velocity in m/s
@@ -386,7 +409,7 @@ class Vehicle:
         self.t_state_change = 0
         self.t_uw = 0
         self.payload(config, 0)
-        self.waypoints = [[start_x,start_y,0]]
+        self.waypoints = [[start_lon, start_lat, 0]]
         self.stashed_waypoints = []
         # Swarm properties
         # if Swarm_Size > 1:
@@ -398,7 +421,7 @@ class Vehicle:
         self.loc_yaw = np.zeros(Swarm_Size)
         self.loc_pitch = np.zeros(Swarm_Size)
         self.loc_measurements = np.zeros(Swarm_Size)
-        self.set_loc_pos(self.ID, [self.x, self.y, self.z])
+        self.set_loc_pos(self.ID, [self.lon, self.lat, self.z])
 
 
         self.logger(0)
