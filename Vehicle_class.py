@@ -6,7 +6,7 @@ import numpy as np
 from log import Log
 from Config_class import *
 from Acc_channel_class import *
-
+from latlon_util import find_dir, find_dist
 
 class Vehicle:
     def send_acc_msg(self, Acc_comms, elps_time, config, Swarm):
@@ -125,7 +125,7 @@ class Vehicle:
             # If the distance to a waypoint > the set maximum distance for a single dive, a dive of dive_dist (xy) is perfromed in
             # the same direction of the original waypoint. This means the AUV has a chance of reaching depth instead of diving at
             # a shallow angle to a waypoint multiple km away.
-            dist_to_target =  self.dist([self.lon, self.lat], (target[0], target[1]))
+            dist_to_target =  find_dist([self.lon, self.lat], (target[0], target[1]))
             if dist_to_target > config.dive_dist:
                 dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
@@ -146,7 +146,7 @@ class Vehicle:
 
 
     def move_to_waypoint(self, elps_time, config):
-        dist_mag =  self.dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
+        dist_mag =  find_dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
 
         # If the AUV is within xm of the waypoint
         if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
@@ -159,12 +159,12 @@ class Vehicle:
         # if self needs to move in the xy plane
         if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
             # Set yaw demand to the direction of the vector from current position to waypoint
-            self.set_yaw_demand(self.find_dir((self.lon, self.lat) , (self.waypoints[0][0], self.waypoints[0][1])))
+            self.set_yaw_demand(find_dir((self.lon, self.lat) , (self.waypoints[0][0], self.waypoints[0][1])))
 
         # If depth requirement is not met
         if self.z != self.waypoints[0][2]:
             # Work out distance in xy plane to work out sufficient dive angle
-            dist_xy =  self.dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
+            dist_xy =  find_dist((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
             # when dist_xy = 0, errors
             if dist_xy == 0 and self.z > curr_wayp[2]:
                 self.set_pitch_demand(self.config.max_pitch)
@@ -239,27 +239,6 @@ class Vehicle:
         dlon = self.vx * config.time_step * m_per_deglon
         self.lon = self.lon + dlon
 
-    def dist(self, pos1, pos2):
-        # calculates distance between two lat lon points using the haversine formula
-        lon1, lat1 = np.radians(pos1)
-        lon2, lat2 = np.radians(pos2)
-        # haversine formula
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
-        c = 2 * np.arcsin(np.sqrt(a))
-        r = 6378.137 * 1000 # Radius of earth in kilometers
-        return c * r
-
-    def find_dir(self, pos1, pos2):
-        lon1, lat1 = np.radians(pos1)
-        lon2, lat2 = np.radians(pos2)
-        X = np.cos(lat2) * np.sin(abs(lon1 - lon2))
-        Y = (np.cos(lat1) * np.sin(lat2)) - (np.sin(lat1) * np.cos(lat2) * np.cos(abs(lon1 - lon2)))
-        dir = np.arctan2(X, Y)
-        return np.degrees(dir)
-
-
     def actual_location(self, time_step):
         # Simulation of dead reckoning drift error
         pass
@@ -269,7 +248,7 @@ class Vehicle:
             global_max_loc = [500 + (0.078 * t * config.time_step), 500]
         else:
             global_max_loc = [500,500]
-        dist2max = self.dist((self.lon, self.lat), (global_max_loc[0], global_max_loc[1]))
+        dist2max = find_dist((self.lon, self.lat), (global_max_loc[0], global_max_loc[1]))
         if dist2max > 850:
             self.measurement = 0
         else:
@@ -338,7 +317,7 @@ class Vehicle:
 
     def set_loc_pos(self, ID, pos):
         self.loc_pos[ID] = pos
-        self.loc_dist[ID] = self.dist((self.lon, self.lat), (pos[0], pos[1]))
+        self.loc_dist[ID] = find_dist((self.lon, self.lat), (pos[0], pos[1]))
 
     def set_state(self, s, elps_time):
         # if self.state == 1 and s == 0:
