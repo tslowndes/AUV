@@ -77,7 +77,8 @@ def prove_dive_behaviour(config):
 
         AUV.time_checks(elps_time, config)
         AUV.go(config, elps_time)
-
+        if elps_time == 423:
+            print('break')
     write_proof(AUV, config)
 
 run_validation()
