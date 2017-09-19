@@ -6,15 +6,28 @@ import numpy as np
 from log import Log
 from Config_class import *
 from Acc_channel_class import *
-from latlon_util import find_dir, find_dist
+from latlon_util import find_dir, find_dist2
 
 class Vehicle:
     def send_acc_msg(self, Acc_comms, elps_time, config, Swarm):
+        """
+        Sends message to the acoustic channel then triggers transmit message which determines which vehicles receive the messages
+        based on range from source. No current message collision.
+        :param Acc_comms: Acoustic channel
+        :param elps_time: Time stamp for message
+        :param config: Simulation config, used for transmit message
+        :param Swarm: List of vehicle_class objects
+        """
         if self.state != 3:
             Acc_comms.msg = Msg(self.ID, elps_time, self.v, [self.lon, self.lat, self.z] , self.yaw, self.pitch)
             Acc_comms.transmit_msg(Swarm, config)
 
     def receive_acc_msg(self, Acc_comms):
+        """
+        Checks the acoustic channel for a message.
+        Updates if the message is newer than data held by the vehicle
+        :param Acc_comms: Acoustic Channel
+        """
         if Acc_comms.receive_msg[self.ID] == 1:
             msg = Acc_comms.msg
             self.loc_vehicles[msg.ID] = 1
@@ -26,6 +39,15 @@ class Vehicle:
                 self.loc_pitch[msg.ID] = msg.pitch
 
     def sat_comms(self, base, config, elps_time):
+        """
+        Simulates satellite communication. The vehicle must first stop and pitch entirely nose down in order to receive and
+        send data. There is a delay of 3 minutes to simulate waiting for a satellite fix. The variable sat_commd ensures the
+        vehicle does not repeat this process while on the surface, this is reset after diving below 0.5m in normal operation
+        or after t = 0.5t_uw in surface ops.
+        :param base: Base station which contains the data uploaded by all members of the swarm
+        :param config: Simualtion configuration
+        :param elps_time: Time elapsed in simulation, used as a timestamp for data
+        """
         if config.comms != 2:
             if self.sat_commd == 0:
                 if self.z > -0.5 and self.sat_commd == 0 and self.state != 3:
@@ -230,13 +252,13 @@ class Vehicle:
         self.set_loc_pos(self.ID, [self.lon, self.lat, self.z])
 
     def inc_lat(self, config):
-        dS = self.vy * config.time_step
-        dlat = dS / 111111 # Approx length of 1 degree of latitude in m
+        dS = self.vy * config.time_step # meters
+        dlat = dS / 111.111 # Approx length of 1 degree of latitude in km
         self.lat = self.lat + dlat
 
     def inc_lon(self, config):
-        m_per_deglon = np.cos(self.lat) * 111111
-        dlon = self.vx * config.time_step * m_per_deglon
+        m_per_deglon = np.cos(self.lat) * 111.111
+        dlon = ( self.vx * config.time_step ) / m_per_deglon
         self.lon = self.lon + dlon
 
     def actual_location(self, time_step):

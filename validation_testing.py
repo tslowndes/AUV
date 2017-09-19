@@ -5,8 +5,7 @@ from Base_stn_class import Base_Station
 from Acc_channel_class import *
 from progress_bar import *
 from Vehicle_class import Vehicle
-from writing import write_proof, write_bare_proof
-from dist import dist
+from writing import write_proof
 from Config_class import *
 import os
 from shutil import copyfile
@@ -46,7 +45,7 @@ def prove_vel_behaviour(config):
         for elps_time in range(100):
             AUV.go(config, elps_time)
 
-    write_bare_proof(AUV, config)
+    write_proof(AUV, config)
     print_time(1)
 
 def prove_yaw_behaviour(config):
@@ -63,7 +62,7 @@ def prove_yaw_behaviour(config):
         update_progress(elps_time, config.run_time)
     # Outputs results
     print('\nWriting Results')
-    write_bare_proof(AUV, config)
+    write_proof(AUV, config)
     print_time(1)
 
 def prove_dive_behaviour(config):
@@ -79,6 +78,6 @@ def prove_dive_behaviour(config):
         AUV.time_checks(elps_time, config)
         AUV.go(config, elps_time)
 
-    write_bare_proof(AUV, config)
+    write_proof(AUV, config)
 
 run_validation()
