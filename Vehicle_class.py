@@ -49,7 +49,7 @@ class Vehicle:
         :param elps_time: Time elapsed in simulation, used as a timestamp for data
         """
         if config.comms != 2:
-            if self.sat_commd == 0:
+            if self.sat_commd == 0 :
                 if self.z > -0.5 and self.sat_commd == 0 and self.state != 3:
                     self.set_v_demand(0)
                     self.set_state(3, elps_time)
@@ -57,7 +57,7 @@ class Vehicle:
                 if self.v < 0.001 and self.state == 3 and self.z > -0.5:
                     self.set_pitch_demand(self.config.max_pitch)
 
-                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0:
+                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0 and self.state == 3:
                     self.sat_up(base, elps_time)
                     self.sat_down(config, base, config.swarm_size, elps_time)
                     self.sat_commd = 1
@@ -73,9 +73,12 @@ class Vehicle:
                 self.sat_commd = 1
                 self.set_state(0, elps_time)
 
-        if config.sim_type != 0 and config.sim_sub_type != 1:
-            if self.z < -0.5 and self.sat_commd == 1:
-                self.sat_commd = 0
+
+        # if config.sim_type == 0 and config.sim_sub_type == 1:
+        #     pass
+        # else:
+        #     if self.z < -0.5 and self.sat_commd == 1:
+        #         self.sat_commd = 0
 
 
     def sat_up(self, base, elps_time):
@@ -120,8 +123,8 @@ class Vehicle:
 
         if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.state != 2:
             self.set_state(1, elps_time)
-            if config.sim_type == 0 and config.sim_sub_type == 1:
-                self.sat_commd = 0
+            # if config.sim_type == 0 and config.sim_sub_type == 1:
+            self.sat_commd = 0
 
             # if waypoint at depth
             if self.waypoints[0][2] != 0:
@@ -169,7 +172,6 @@ class Vehicle:
 
     def move_to_waypoint(self, elps_time, config):
         dist_mag =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
-
         # If the AUV is within xm of the waypoint
         if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
             if self.stashed_waypoints != []:
@@ -177,6 +179,10 @@ class Vehicle:
                 self.stashed_waypoints = []
             else:
                 self.next_waypoint(config, elps_time)
+                if self.waypoints[0][2] > -0.5:
+                    self.set_state(1, elps_time)
+
+
 
         # if self needs to move in the xy plane
         #if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
@@ -188,9 +194,9 @@ class Vehicle:
             # Work out distance in xy plane to work out sufficient dive angle
             dist_xy =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
             # when dist_xy = 0, errors
-            if dist_xy == 0 and self.z > curr_wayp[2]:
+            if dist_xy == 0 and self.z > self.waypoints[0][2]:
                 self.set_pitch_demand(self.config.max_pitch)
-            elif dist_xy == 0 and self.z < curr_wayp[2]:
+            elif dist_xy == 0 and self.z < self.waypoints[0][2]:
                 self.set_pitch_demand(-self.config.max_pitch)
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - self.waypoints[0][2]) / dist_xy))))
@@ -351,9 +357,9 @@ class Vehicle:
         # elif self.state == 2 and s == 1:
         #     print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
         #     raise
-
-        if self.state != 0 and s != 2:
-            self.t_state_change = elps_time
+        if self.state != s:
+            if self.state != 0 and s != 2:
+                self.t_state_change = elps_time
         self.state = s
 
     def get_t_uw(self, elps_time):
