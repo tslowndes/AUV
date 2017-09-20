@@ -68,7 +68,9 @@ def prove_yaw_behaviour(config):
 def prove_dive_behaviour(config):
     Base = Base_Station(config.swarm_size)
     AUV = Vehicle(config, 0, 1, -1.3945, 50.8926, 0, 0)
-    AUV.waypoints = [[-1.4010, 50.8926,-50], [-1.4020, 0, 0], [-1.4030, 0, -50]]
+    AUV.waypoints = [[-1.3945, 50.8926,-50],
+                     [-1.4005, 50.8926, 0],
+                     [-1.4030, 50.8926, -50]]
 
     for elps_time in range(config.run_time):
 

@@ -179,9 +179,9 @@ class Vehicle:
                 self.next_waypoint(config, elps_time)
 
         # if self needs to move in the xy plane
-        if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
-            # Set yaw demand to the direction of the vector from current position to waypoint
-            self.set_yaw_demand(find_dir((self.lon, self.lat) , (self.waypoints[0][0], self.waypoints[0][1])))
+        #if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
+        # Set yaw demand to the direction of the vector from current position to waypoint
+        self.set_yaw_demand(find_dir((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1])))
 
         # If depth requirement is not met
         if self.z != self.waypoints[0][2]:
@@ -253,11 +253,11 @@ class Vehicle:
 
     def inc_lat(self, config):
         dS = self.vy * config.time_step # meters
-        dlat = dS / 111.111 # Approx length of 1 degree of latitude in km
+        dlat = dS / 111111 # Approx length of 1 degree of latitude in km
         self.lat = self.lat + dlat
 
     def inc_lon(self, config):
-        m_per_deglon = np.cos(self.lat) * 111.111
+        m_per_deglon = np.cos(self.lat) * 111111
         dlon = ( self.vx * config.time_step ) / m_per_deglon
         self.lon = self.lon + dlon
 
@@ -329,8 +329,8 @@ class Vehicle:
             self.v = v
 
         v_xy = self.v * cos(radians(self.pitch))
-        self.vx = v_xy * cos(radians(self.yaw))
-        self.vy = v_xy * sin(radians(self.yaw))
+        self.vx = v_xy * sin(radians(self.yaw))
+        self.vy = v_xy * cos(radians(self.yaw))
         self.vz = self.v * sin(radians(self.pitch))
 
     def set_v_demand(self, vd):
