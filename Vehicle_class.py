@@ -103,7 +103,7 @@ class Vehicle:
                         # i.e. if the data for vehicle i on the base station is newer than on self
                         if self.time_stamps[i] < base.time_stamps[i] or elps_time == 0:
                             # Download i data
-                            self.set_loc_pos(i, [base.log[i].x[-1], base.log[i].y[-1], base.log[i].z[-1]])
+                            self.set_loc_pos(i, [base.log[i].lon[-1], base.log[i].lat[-1], base.log[i].z[-1]])
                             # update last time self received data on vehicle i = when vehicle i communicated with basestation
                             self.time_stamps[i] = base.time_stamps[i]
                             # Add vehicle to loc_vehicles, as only < is used in the condition, if self.time_stamp = basestation.timestamp
@@ -155,10 +155,10 @@ class Vehicle:
                 dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
                 if self.state == 0:
-                    self.waypoints = [[self.lon + (dive_lon), self.lat + (dive_laty), config.dive_depth]]
+                    self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, config.dive_depth]]
                     self.stashed_waypoints = []
                 elif self.state == 1:
-                    self.waypoints = [[self.lon + (dive_lon), self.lat + (dive_lat), 0]]
+                    self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, 0]]
                     self.stashed_waypoints = []
             else:
                 if self.state == 0:
