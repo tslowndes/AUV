@@ -71,19 +71,13 @@ class Vehicle:
                 self.set_state(0,elps_time)
 
         else:
-            if self.z > -0.5 and self.sat_commd == 0:
+            # In the ideal communication case:
+            if self.z > -0.1 and self.sat_commd == 0:
                 self.set_state(3, elps_time)
                 self.sat_up(base, elps_time)
                 self.sat_down(config, base, config.swarm_size, elps_time)
                 self.sat_commd = 1
                 self.set_state(0, elps_time)
-
-
-        # if config.sim_type == 0 and config.sim_sub_type == 1:
-        #     pass
-        # else:
-        #     if self.z < -0.5 and self.sat_commd == 1:
-        #         self.sat_commd = 0
 
 
     def sat_up(self, base, elps_time):
