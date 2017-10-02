@@ -50,20 +50,25 @@ class Vehicle:
         """
         if config.comms != 2:
             if self.sat_commd == 0 :
-                if self.z > -0.5 and self.sat_commd == 0 and self.state != 3:
+                if self.z > -0.1 and self.sat_commd == 0 and self.state != 3:
                     self.set_v_demand(0)
                     self.set_state(3, elps_time)
 
-                if self.v < 0.001 and self.state == 3 and self.z > -0.5:
+                if self.v < 0.001 and self.state == 3 and self.z > -0.1:
                     self.set_pitch_demand(self.config.max_pitch)
 
-                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0 and self.state == 3:
+                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.1 and self.sat_commd == 0 and self.state == 3:
                     self.sat_up(base, elps_time)
                     self.sat_down(config, base, config.swarm_size, elps_time)
                     self.sat_commd = 1
 
             if self.state == 3 and self.sat_commd == 1 and (elps_time - self.log.sat_time_stamps[-1]) >= config.t_sat / config.time_step:
-                self.set_state(0, elps_time)
+                # if config.sim_type == 1 and config.sim_sub_type == 0:
+                #     self.set_pitch_demand(0)
+                #     if abs(self.pitch) < 0.001:
+                #         self.set_state(0, elps_time)
+                # else:
+                self.set_state(0,elps_time)
 
         else:
             if self.z > -0.5 and self.sat_commd == 0:
