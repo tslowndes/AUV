@@ -63,12 +63,12 @@ class Vehicle:
                     self.sat_commd = 1
 
             if self.state == 3 and self.sat_commd == 1 and (elps_time - self.log.sat_time_stamps[-1]) >= config.t_sat / config.time_step:
-                # if config.sim_type == 1 and config.sim_sub_type == 0:
-                #     self.set_pitch_demand(0)
-                #     if abs(self.pitch) < 0.001:
-                #         self.set_state(0, elps_time)
-                # else:
-                self.set_state(0,elps_time)
+                if config.sim_type == 1 and config.sim_sub_type == 0:
+                    self.set_pitch_demand(0)
+                    if abs(self.pitch) < 0.001:
+                        self.set_state(0, elps_time)
+                else:
+                    self.set_state(0,elps_time)
 
         else:
             # In the ideal communication case:
