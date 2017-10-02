@@ -54,9 +54,9 @@ class Vehicle:
                 self.sat_commd = 1
                 self.set_state(0, elps_time)
 
-        if self.z < -0.5 and self.sat_commd == 1:
-            self.sat_commd = 0
-
+        if config.sim_type != 0 and config.sim_sub_type != 1:
+            if self.z < -0.5 and self.sat_commd == 1:
+                self.sat_commd = 0
 
 
     def sat_up(self, base, elps_time):
@@ -99,8 +99,11 @@ class Vehicle:
 
     def time_checks(self, elps_time, config):
 
-        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.set_state != 2:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.state != 2:
             self.set_state(1, elps_time)
+            if config.sim_type == 0 and config.sim_sub_type == 1:
+                self.sat_commd = 0
+
             # if waypoint at depth
             if self.waypoints[0][2] != 0:
                 self.stashed_waypoints = self.waypoints
@@ -110,6 +113,7 @@ class Vehicle:
 
         if self.get_t_uw(elps_time) > config.t_uw * 0.9:
             self.set_state(2, elps_time)
+
             if self.stashed_waypoints != []:
                 self.waypoints = [[self.x, self.y, 0]]
             else:
@@ -205,7 +209,7 @@ class Vehicle:
         if abs(yaw_rate) > self.config.max_yaw_rate:
             yaw_rate = (yaw_rate / abs(yaw_rate)) * self.config.max_yaw_rate
 
-        self.set_yaw(self.yaw + (yaw_rate * time_step))
+        self.set_yaw(self.yaw + ((self.v / self.config.max_v) * yaw_rate * time_step))
 
         #################################### CHANGES TO PITCH ###############################################
 
