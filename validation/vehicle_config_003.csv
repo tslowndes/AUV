@@ -3,5 +3,5 @@ max_yaw_rate, 15
 max_pitch_rate, 10
 max_pitch, 40
 max_acc, 1
-min_v, 0.25
+min_v, 0
 max_v, 1.0

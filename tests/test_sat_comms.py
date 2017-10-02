@@ -170,11 +170,24 @@ def test_sat_commd():
     base = Base_Station(config.swarm_size)
     elps_time = 0
 
-    AUV_A.sat_comms(base, config.swarm_size, elps_time)
+    AUV_A.sat_comms(base, config, elps_time)
+    assert AUV_A.state == 3
+    assert AUV_A.sat_commd == 0
 
+    AUV_A.pitch = AUV_A.config.max_pitch
+    AUV_A.v = 0
+
+    AUV_A.sat_comms(base, config, elps_time)
+    assert AUV_A.state == 3
+    assert AUV_A.sat_commd == 1
+
+    elps_time = 181/config.time_step
+    AUV_A.waypoints = [[2,2,2],[4,4,4],[5,5,5]]
+    AUV_A.sat_comms(base, config, elps_time)
+    assert AUV_A.state == 0
     assert AUV_A.sat_commd == 1
 
     AUV_A.z = -1
-    AUV_A.sat_comms(base, config.swarm_size, elps_time)
+    AUV_A.sat_comms(base, config, elps_time)
 
     assert AUV_A.sat_commd == 0

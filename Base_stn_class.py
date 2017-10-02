@@ -1,6 +1,5 @@
 import sys
-sys.path.insert(0, '/noc/users/tsl1g12/gen')
-sys.path.insert(0, 'C:/users/tsl1g12/desktop/phd_sim/gen')
+sys.path.insert(0, '../gen')
 from log import *
 
 class Base_Station:

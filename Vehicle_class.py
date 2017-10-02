@@ -13,7 +13,7 @@ from Acc_channel_class import *
 
 class Vehicle:
     def send_acc_msg(self, Acc_comms, elps_time, config, Swarm):
-        if self.z < -0.5 and config.sat_andor_acc == 1:
+        if self.state != 3:
             Acc_comms.msg = Msg(self.ID, elps_time, self.v, [self.x, self.y, self.z] , self.yaw, self.pitch)
             Acc_comms.transmit_msg(Swarm, config)
 
@@ -21,23 +21,43 @@ class Vehicle:
         if Acc_comms.receive_msg[self.ID] == 1:
             msg = Acc_comms.msg
             self.loc_vehicles[msg.ID] = 1
-            if msg.sent_time > self.time_stamps[msg.ID]: #[1]
+            if msg.sent_time >= self.time_stamps[msg.ID]: #[1]
                 self.time_stamps[msg.ID] = msg.sent_time
                 self.loc_v[msg.ID] = msg.v
                 self.set_loc_pos(msg.ID, msg.pos)
                 self.loc_yaw[msg.ID] = msg.yaw
                 self.loc_pitch[msg.ID] = msg.pitch
 
-    def sat_comms(self, base, swarm_size, elps_time):
-        if self.z > -0.5 and self.sat_commd == 0:
-            self.sat_up(base, elps_time)
-            self.sat_down(base, swarm_size, elps_time)
-            self.set_state(0)
-            self.t_state_change = elps_time
-            self.sat_commd = 1
+    def sat_comms(self, base, config, elps_time):
+        if config.comms != 2:
+            if self.sat_commd == 0:
+                if self.z > -0.5 and self.sat_commd == 0 and self.state != 3:
+                    self.set_v_demand(0)
+                    self.set_state(3, elps_time)
 
-        elif self.z < -0.5 and self.sat_commd == 1:
+                if self.v < 0.001 and self.state == 3 and self.z > -0.5:
+                    self.set_pitch_demand(self.config.max_pitch)
+
+                if abs(self.pitch - self.config.max_pitch) < 0.001 and self.v < 0.001 and self.z > -0.5 and self.sat_commd == 0:
+                    self.sat_up(base, elps_time)
+                    self.sat_down(config, base, config.swarm_size, elps_time)
+                    self.sat_commd = 1
+
+            if self.state == 3 and self.sat_commd == 1 and (elps_time - self.log.sat_time_stamps[-1]) >= config.t_sat / config.time_step:
+                self.set_state(0, elps_time)
+
+        else:
+            if self.z > -0.5 and self.sat_commd == 0:
+                self.set_state(3, elps_time)
+                self.sat_up(base, elps_time)
+                self.sat_down(config, base, config.swarm_size, elps_time)
+                self.sat_commd = 1
+                self.set_state(0, elps_time)
+
+        if self.z < -0.5 and self.sat_commd == 1:
             self.sat_commd = 0
+
+
 
     def sat_up(self, base, elps_time):
         if self.z > -0.5:
@@ -49,13 +69,14 @@ class Vehicle:
             base.time_stamps[self.ID] = elps_time
             self.log.sat_time_stamps.append(elps_time)
 
-    def sat_down(self, base, swarm_size, elps_time):
+    def sat_down(self, config, base, swarm_size, elps_time):
         if self.z > -0.5:
             # Download
             for i in range(swarm_size):
                 if i != self.ID:
                     # If basestation log is not empty
                     if base.log[i].x != []:
+
                         # if the last time vehicle i communicated with self was before i communicated with base
                         # i.e. if the data for vehicle i on the base station is newer than on self
                         if self.time_stamps[i] < base.time_stamps[i] or elps_time == 0:
@@ -68,26 +89,35 @@ class Vehicle:
                             if self.loc_vehicles[i] == 0:
                                 self.loc_vehicles[i] = 1
                         # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
-                        elif self.time_stamps[i] == base.time_stamps[i]:
+                        # config.comms = 0 = sat only case however because all the AUVs dive in order the first one surfaces, checks the
+                        # base and its got all the same info as before hence the AUV thinks all the others have died.
+                        elif self.time_stamps[i] == base.time_stamps[i] and config.comms != 0:
                             if self.loc_vehicles[i] == 1:
                                 self.loc_vehicles[i] = 0
                         # if self.time_stamps[i] > base.time_stamps the vehicle has communicated underwater and the data is newer than that on the base station
 
 
     def time_checks(self, elps_time, config):
-        # If AUV is still diving after x% of max time permitted underwater, force to surface.
-        if elps_time - self.t_state_change > config.t_uw * 0.5 and self.state == 0:
-            # Surface
-            self.set_state(1)
-            self.waypoints = [self.waypoints[self.current_waypoint][0:2]+[0]]
-            self.current_waypoint = 0
 
-        if elps_time - self.t_state_change > config.t_uw * 0.9:
-            # Surface NOW
-            self.set_state(2)
-            self.waypoints = [[self.x, self.y, 0]]
-            self.current_waypoint = 0
+        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.set_state != 2:
+            self.set_state(1, elps_time)
+            # if waypoint at depth
+            if self.waypoints[0][2] != 0:
+                self.stashed_waypoints = self.waypoints
+                self.waypoints = [[self.waypoints[0][0],
+                                   self.waypoints[0][1],
+                                   0]]
 
+        if self.get_t_uw(elps_time) > config.t_uw * 0.9:
+            self.set_state(2, elps_time)
+            if self.stashed_waypoints != []:
+                self.waypoints = [[self.x, self.y, 0]]
+            else:
+                # The only reason it would == [] is if the waypoint when the time was exceeded was at the surface
+                # The first waypoint in the stashed waypoint will now be a surface waypoint
+                # Hence a waypoint at depth needs to be inserted at the start to avoid the AUV trundelling across the surface
+                self.stashed_waypoints = [[(self.x + self.waypoints[0][0])/2, (self.y + self.waypoints[0][1])/2, config.dive_depth]] + self.waypoints
+                self.waypoints = [[self.x, self.y, 0]]
 
     def set_waypoint(self, target, config):
         if self.state != 2:
@@ -100,35 +130,36 @@ class Vehicle:
                 dive_y = (target[1] - self.y) * (config.dive_dist / dist_to_target)
                 if self.state == 0:
                     self.waypoints = [[self.x + (dive_x), self.y + (dive_y), config.dive_depth]]
+                    self.stashed_waypoints = []
                 elif self.state == 1:
                     self.waypoints = [[self.x + (dive_x), self.y + (dive_y), 0]]
+                    self.stashed_waypoints = []
             else:
                 if self.state == 0:
                     self.waypoints = [target + [config.dive_depth]]
+                    self.stashed_waypoints = []
                 elif self.state == 1:
                     self.waypoints = [target + [0]]
+                    self.stashed_waypoints = []
 
 
-    def move_to_waypoint(self):
-        curr_wayp = self.waypoints[self.current_waypoint]
-        dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
-        dist_mag = sqrt(sum(i**2 for i in dist_xyz))
+
+    def move_to_waypoint(self, elps_time, config):
+        curr_wayp = self.waypoints[0]
+        dist_mag = dist([self.x, self.y, self.z], [curr_wayp[0], curr_wayp[1], curr_wayp[2]], 2)
+
         # If the AUV is within xm of the waypoint
-        if dist_mag < self.config.accept_rad and self.state != 2:
-            # If it isn't the last waypoint
-            if curr_wayp != self.waypoints[-1]:
-                # Load the next waypoint
-                self.current_waypoint = self.current_waypoint + 1
-                curr_wayp = self.waypoints[self.current_waypoint]
-                # update distance variables for new waypoint
-                dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
+        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
+            if self.stashed_waypoints != []:
+                self.waypoints = self.stashed_waypoints
+                self.stashed_waypoints = []
             else:
-                # Set waypoint for vehicle to surface
-                self.set_state(1)
-                self.waypoints = [[curr_wayp[0], curr_wayp[1], 0]]
-                self.current_waypoint = 0
-                curr_wayp = self.waypoints[self.current_waypoint]
-                dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
+                self.next_waypoint(config, elps_time)
+
+
+        curr_wayp = self.waypoints[0]
+        # update distance variables for new waypoint
+        dist_xyz = np.array([abs(self.x - curr_wayp[0]), abs(self.y - curr_wayp[1]), abs(self.z - curr_wayp[2])])
 
         # if self needs to move in the xy plane
         if self.x != curr_wayp[0] or self.y != curr_wayp[1]:
@@ -146,6 +177,20 @@ class Vehicle:
                 self.set_pitch_demand(-self.config.max_pitch)
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - curr_wayp[2]) / dist_xy))))
+
+        self.set_v_demand(self.config.max_v / 2)
+
+    def next_waypoint(self, config, elps_time):
+        self.waypoints.pop(0)
+        if self.waypoints == []:
+            if self.state == 1 or self.state == 2:
+                self.set_state(0, elps_time)
+                self.waypoints = [[self.x, self.y, config.dive_depth]]
+            elif self.state == 0:
+                # Set waypoint for vehicle to surface
+                self.set_state(1, elps_time)
+                self.waypoints = [[self.x, self.y, 0]]
+
 
     # Models the reaction of the AUV to changes in demand with simple exponentials
     def plant(self, time_step):
@@ -196,8 +241,11 @@ class Vehicle:
         # Simulation of dead reckoning drift error
         pass
 
-    def payload(self, t, time_step=0.5):
-        global_max_loc = [500 + (0.078 * t * time_step), 500]
+    def payload(self, config, t):
+        if config.feature_move == 1:
+            global_max_loc = [500 + (0.078 * t * config.time_step), 500]
+        else:
+            global_max_loc = [500,500]
         dist = np.sqrt(((global_max_loc[0] - self.x) ** 2) + ((global_max_loc[1] - self.y) ** 2))
         if dist > 850:
             self.measurement = 0
@@ -206,12 +254,14 @@ class Vehicle:
 
     def go(self, config, elps_time = 0):
         # Have to skip move_to_waypoint in velocity validation.
-        if config.sim_sub_type != 3:
-            self.move_to_waypoint()
+        if self.state != 3:
+            if config.sim_sub_type != 3:
+                self.move_to_waypoint(elps_time, config)
         self.plant(config.time_step)
         self.dead_reckoner(config.time_step)
-        self.payload(elps_time, config.time_step)
-        self.logger()
+        if config.feature_monitoring == 1:
+            self.payload(config, elps_time)
+        self.logger(elps_time)
 
     ############################################### SETTERS ############################################################
 
@@ -231,7 +281,7 @@ class Vehicle:
 
     def set_pitch(self, pitch):
 
-        if abs(pitch) > self.config.max_pitch and self.pitch != 0:
+        if abs(pitch) > self.config.max_pitch:
             self.pitch = (pitch / abs(pitch)) * self.config.max_pitch
         else:
             self.pitch = pitch
@@ -267,22 +317,31 @@ class Vehicle:
         self.loc_pos[ID] = pos
         self.loc_dist[ID] = np.sqrt(sum((pos - np.array([self.x, self.y, self.z])) ** 2))
 
-    def set_state(self, s):
-        if self.state == 1 and s == 0 and self.z < -0.5:
-            print('INVALID STATE CHANGE: Attempted to move from surfacing to diving at z %f m' % self.z)
-            raise
-        elif self.state == 2 and s == 0 and self.z < -0.5:
-            print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving at z %f m' % self.z)
-            raise
-        elif self.state == 2 and s == 1:
-            print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
-            raise
+    def set_state(self, s, elps_time):
+        # if self.state == 1 and s == 0:
+        #     print('INVALID STATE CHANGE: Attempted to move from surfacing to diving')
+        #     raise
+        # elif self.state == 2 and s == 0:
+        #     print('INVALID STATE CHANGE: Attempted to move from immediate surfacing to diving')
+        #     raise
+        # elif self.state == 2 and s == 1:
+        #     print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
+        #     raise
 
+        if self.state != 0 and s != 2:
+            self.t_state_change = elps_time
         self.state = s
+
+    def get_t_uw(self, elps_time):
+        if self.state != 3:
+            t_uw = elps_time - self.t_state_change # JON SNOW KNOWS NOTHING / He's dead and alive again
+        else:
+            t_uw = 0
+        return t_uw
 
     ####################################################################################################################
 
-    def logger(self):
+    def logger(self, elps_time):
         self.log.x.append(self.x)
         self.log.y.append(self.y)
         self.log.z.append(self.z)
@@ -294,14 +353,16 @@ class Vehicle:
         self.log.pitch_demand.append(self.pitch_demand)
         self.log.loc_pos.append(np.copy(self.loc_pos))
         self.log.measurement.append(self.measurement)
-        self.log.x_demand.append(self.waypoints[self.current_waypoint][0])
-        self.log.y_demand.append(self.waypoints[self.current_waypoint][1])
-        self.log.z_demand.append(self.waypoints[self.current_waypoint][2])
+        self.log.x_demand.append(self.waypoints[0][0])
+        self.log.y_demand.append(self.waypoints[0][1])
+        self.log.z_demand.append(self.waypoints[0][2])
+        self.log.state.append(self.state)
+        self.log.time_uw.append(self.get_t_uw(elps_time))
 
     def __del__(self):
         pass
 
-    def __init__(self,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
+    def __init__(self, config,i, Swarm_Size, start_x, start_y, start_z, start_yaw):
         # Loading configurable parameters
         self.config = sim_config('config/vehicle_config.csv')
         self.ID = i
@@ -319,9 +380,10 @@ class Vehicle:
         self.log = Log()
         self.state = 0
         self.t_state_change = 0
-        self.payload(0)
-        self.current_waypoint = 0
+        self.t_uw = 0
+        self.payload(config, 0)
         self.waypoints = [[start_x,start_y,0]]
+        self.stashed_waypoints = []
         # Swarm properties
         # if Swarm_Size > 1:
         self.time_stamps = list([-1 for i in range(0,Swarm_Size)])
@@ -334,7 +396,8 @@ class Vehicle:
         self.loc_measurements = np.zeros(Swarm_Size)
         self.set_loc_pos(self.ID, [self.x, self.y, self.z])
 
-        self.logger()
+
+        self.logger(0)
 
 
 

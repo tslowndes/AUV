@@ -32,11 +32,11 @@ def test_time_checks(elps_time, state, expected):
 
 @pytest.mark.parametrize("z, state, expected", [
     (-1, 1, 1),
-    (-0.1, 1, 0),
+    (-0.1, 1, 3),
     (-1, 2, 2),
-    (-0.1, 2, 0),
+    (-0.1, 2, 3),
     # faulty sensor, depth !> 0, but > -0.5 hence still sat_comm & dive.
-    (50, 2, 0)
+    (50, 2, 3)
 ])
 
 
@@ -73,8 +73,8 @@ def test_reached_waypoint():
 
 # Expected - 0: accepts state, 1:errors
 @pytest.mark.parametrize("curr_state, desired_state, z, expected", [
-    (1, 0, -0.1, 0),
-    (2, 0, -0.1, 0),
+    (1, 0, -0.1, 1),
+    (2, 0, -0.1, 1),
     (1, 0, -0.7, 1),
     (2, 0, -0.7, 1),
     (2, 1, -10, 1),
