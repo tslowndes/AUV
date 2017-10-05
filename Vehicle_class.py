@@ -262,7 +262,7 @@ class Vehicle:
         self.lat = self.lat + dlat
 
     def inc_lon(self, config):
-        m_per_deglon = np.cos(self.lat) * 111111
+        m_per_deglon = np.cos(np.radians(self.lat)) * 111111
         dlon = ( self.vx * config.time_step ) / m_per_deglon
         self.lon = self.lon + dlon
 
