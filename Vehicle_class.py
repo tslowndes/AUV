@@ -81,7 +81,7 @@ class Vehicle:
 
 
     def sat_up(self, base, elps_time):
-        if self.z > -0.5:
+        if self.z > -0.1:
             # Upload
             base.log[self.ID].lon.append(self.lon)
             base.log[self.ID].lat.append(self.lat)
@@ -91,7 +91,7 @@ class Vehicle:
             self.log.sat_time_stamps.append(elps_time)
 
     def sat_down(self, config, base, swarm_size, elps_time):
-        if self.z > -0.5:
+        if self.z > -0.1:
             # Download
             for i in range(swarm_size):
                 if i != self.ID:
@@ -119,30 +119,12 @@ class Vehicle:
 
 
     def time_checks(self, elps_time, config):
-
-        if self.get_t_uw(elps_time) > config.t_uw * 0.5 and self.state != 2:
-            self.set_state(1, elps_time)
-            # if config.sim_type == 0 and config.sim_sub_type == 1:
-            self.sat_commd = 0
-
-            # if waypoint at depth
-            if self.waypoints[0][2] != 0:
-                self.stashed_waypoints = self.waypoints
-                self.waypoints = [[self.waypoints[0][0],
-                                   self.waypoints[0][1],
-                                   0]]
-
         if self.get_t_uw(elps_time) > config.t_uw * 0.9:
             self.set_state(2, elps_time)
-
-            if self.stashed_waypoints != []:
-                self.waypoints = [[self.lon, self.lat, 0]]
+            if self.waypoints[0][2] == 0:
+                self.waypoints = [[self.lon,self.lat,0],[(self.lon + self.waypoints[0][0]) / 2,(self.lat + self.waypoints[0][1]) / 2,config.dive_depth]] + self.waypoints
             else:
-                # The only reason it would == [] is if the waypoint when the time was exceeded was at the surface
-                # The first waypoint in the stashed waypoint will now be a surface waypoint
-                # Hence a waypoint at depth needs to be inserted at the start to avoid the AUV trundelling across the surface
-                self.stashed_waypoints = [[(self.lon + self.waypoints[0][0])/2, (self.lat + self.waypoints[0][1])/2, config.dive_depth]] + self.waypoints
-                self.waypoints = [[self.lon, self.lat, 0]]
+                self.waypoints = [[self.lon, self.lat, 0]] + self.waypoints
 
     def set_waypoint(self, target, config):
         if self.state != 2:
@@ -150,6 +132,7 @@ class Vehicle:
             # the same direction of the original waypoint. This means the AUV has a chance of reaching depth instead of diving at
             # a shallow angle to a waypoint multiple km away.
             dist_to_target =  find_dist2([self.lon, self.lat], (target[0], target[1]))
+            # Saturates the distance an AUV can move in one dive
             if dist_to_target > config.dive_dist:
                 dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
@@ -167,21 +150,11 @@ class Vehicle:
                     self.waypoints = [target + [0]]
                     self.stashed_waypoints = []
 
-
-
     def move_to_waypoint(self, elps_time, config):
         dist_mag =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
         # If the AUV is within xm of the waypoint
         if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
-            if self.stashed_waypoints != []:
-                self.waypoints = self.stashed_waypoints
-                self.stashed_waypoints = []
-            else:
-                self.next_waypoint(config, elps_time)
-                if self.waypoints[0][2] > -0.5:
-                    self.set_state(1, elps_time)
-
-
+            self.next_waypoint(config, elps_time)
 
         # if self needs to move in the xy plane
         #if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
@@ -205,11 +178,7 @@ class Vehicle:
     def next_waypoint(self, config, elps_time):
         self.waypoints.pop(0)
         if self.waypoints == []:
-            if self.state == 1 or self.state == 2:
-                self.set_state(0, elps_time)
-                self.waypoints = [[self.lon, self.lat, config.dive_depth]]
-            elif self.state == 0:
-                # Set waypoint for vehicle to surface
+                # Loiter
                 self.set_state(1, elps_time)
                 self.waypoints = [[self.lon, self.lat, 0]]
 
