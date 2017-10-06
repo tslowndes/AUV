@@ -49,7 +49,7 @@ class Vehicle:
         :param elps_time: Time elapsed in simulation, used as a timestamp for data
         """
         if config.comms != 2:
-            if self.sat_commd == 0 :
+            if self.sat_commd == 0:
                 if self.z > -0.1 and self.sat_commd == 0 and self.state != 3:
                     self.set_v_demand(0)
                     self.set_state(3, elps_time)
@@ -119,8 +119,9 @@ class Vehicle:
 
 
     def time_checks(self, elps_time, config):
-        if self.get_t_uw(elps_time) > config.t_uw * 0.9:
+        if self.get_t_uw(elps_time) > config.t_uw * 0.9 and self.state != 2:
             self.set_state(2, elps_time)
+            self.sat_commd = 0
             if self.waypoints[0][2] == 0:
                 self.waypoints = [[self.lon,self.lat,0],[(self.lon + self.waypoints[0][0]) / 2,(self.lat + self.waypoints[0][1]) / 2,config.dive_depth]] + self.waypoints
             else:
@@ -136,25 +137,16 @@ class Vehicle:
             if dist_to_target > config.dive_dist:
                 dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
-                if self.state == 0:
-                    self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, config.dive_depth]]
-                    self.stashed_waypoints = []
-                elif self.state == 1:
-                    self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, 0]]
-                    self.stashed_waypoints = []
+                self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, config.dive_depth]]
             else:
-                if self.state == 0:
-                    self.waypoints = [target + [config.dive_depth]]
-                    self.stashed_waypoints = []
-                elif self.state == 1:
-                    self.waypoints = [target + [0]]
-                    self.stashed_waypoints = []
+                self.waypoints = [target + [config.dive_depth]]
 
     def move_to_waypoint(self, elps_time, config):
         dist_mag =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
-        # If the AUV is within xm of the waypoint
-        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1 and self.state == 0:
+        # If the AUV is within xm of the waypoint and 1m within sepcified depth
+        if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1:
             self.next_waypoint(config, elps_time)
+
 
         # if self needs to move in the xy plane
         #if self.lon != self.waypoints[0][0] or self.lat != self.waypoints[0][1]:
@@ -173,14 +165,18 @@ class Vehicle:
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - self.waypoints[0][2]) / dist_xy))))
 
-        self.set_v_demand(self.config.max_v / 2)
+        self.set_v_demand(self.config.max_v)
 
     def next_waypoint(self, config, elps_time):
+        if self.state == 2 or self.waypoints[0][2] == 0:
+            self.set_state(0, elps_time)
+        if len(self.waypoints) == 1:
+                # Loiter on surface
+                self.set_state(2, elps_time)
+                self.waypoints = self.waypoints + [[self.waypoints[0][0], self.waypoints[0][1], 0]]
+        self.sat_commd = 0
         self.waypoints.pop(0)
-        if self.waypoints == []:
-                # Loiter
-                self.set_state(1, elps_time)
-                self.waypoints = [[self.lon, self.lat, 0]]
+
 
 
     # Models the reaction of the AUV to changes in demand with simple exponentials
@@ -325,13 +321,11 @@ class Vehicle:
         # elif self.state == 2 and s == 1:
         #     print('INVALID STATE CHANGE: Attempted to change from immediate surface to surface.')
         #     raise
-        if self.state != s:
-            if self.state != 0 and s != 2:
-                self.t_state_change = elps_time
+        self.t_state_change = elps_time
         self.state = s
 
     def get_t_uw(self, elps_time):
-        if self.state != 3:
+        if self.state == 0:
             t_uw = elps_time - self.t_state_change # JON SNOW KNOWS NOTHING / He's dead and alive again
         else:
             t_uw = 0
@@ -385,7 +379,6 @@ class Vehicle:
         self.t_uw = 0
         self.payload(config, 0)
         self.waypoints = [[start_lon, start_lat, 0]]
-        self.stashed_waypoints = []
         # Swarm properties
         # if Swarm_Size > 1:
         self.time_stamps = list([-1 for i in range(0,Swarm_Size)])
