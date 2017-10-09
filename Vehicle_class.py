@@ -165,7 +165,7 @@ class Vehicle:
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - self.waypoints[0][2]) / dist_xy))))
 
-        self.set_v_demand(self.config.max_v)
+        self.set_v_demand(self.config.max_v / 2)
 
     def next_waypoint(self, config, elps_time):
         if self.state == 2 or self.waypoints[0][2] == 0:
