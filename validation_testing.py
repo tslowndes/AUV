@@ -21,7 +21,6 @@ def run_validation():
         directory = 'validation'
         if os.path.exists(directory) is False:
             os.makedirs(directory)
-        copyfile('config/vehicle_config.csv', directory + '/vehicle_config_%03i.csv' % config.no)
         validation_tests(config)
 
 def validation_tests(config):
@@ -70,8 +69,12 @@ def prove_dive_behaviour(config):
     AUV = Vehicle(config, 0, 1, -1.3945, 50.8926, 0, 0)
     AUV.waypoints = [[-1.3945, 50.8926, 0],
                     [-1.3955, 50.8926, -50],
-                    [-1.3965, 50.8926, 0],
-                    [-1.3965, 50.8921, -50],
+                    [-1.3985, 50.8926, 0],
+                     [-1.3985, 50.8923, -50],
+                     [-1.3985, 50.8921, 0],
+                     [-1.3975, 50.8921, -50],
+                    [-1.3965, 50.8921, 0],
+                     [-1.3965, 50.8918, -50],
                     [-1.3965, 50.8916, 0],
                     [-1.3955, 50.8916, -50],
                     [-1.3945, 50.8916, 0],

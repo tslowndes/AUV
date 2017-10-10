@@ -1,4 +1,4 @@
-accept_rad, 1
+accept_rad, 5
 max_yaw_rate, 15
 max_pitch_rate, 10
 max_pitch, 40
