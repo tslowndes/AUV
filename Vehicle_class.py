@@ -255,7 +255,6 @@ class Vehicle:
         self.dead_reckoner(config)
         if config.feature_monitoring == 1:
             self.payload(config, elps_time)
-        self.logger(elps_time)
 
     ############################################### SETTERS / GETTERS ############################################################
 
