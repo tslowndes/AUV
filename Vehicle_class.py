@@ -112,7 +112,7 @@ class Vehicle:
                         # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
                         # config.comms = 0 = sat only case however because all the AUVs dive in order the first one surfaces, checks the
                         # base and its got all the same info as before hence the AUV thinks all the others have died.
-                        elif self.time_stamps[i] == base.time_stamps[i] and config.comms != 0:
+                        elif self.time_stamps[i] == base.time_stamps[i] and config.comms != 0 and config.comms != 2:
                             if self.loc_vehicles[i] == 1:
                                 self.loc_vehicles[i] = 0
                         # if self.time_stamps[i] > base.time_stamps the vehicle has communicated underwater and the data is newer than that on the base station
@@ -146,6 +146,8 @@ class Vehicle:
         # If the AUV is within xm of the waypoint and 1m within sepcified depth
         if dist_mag < self.config.accept_rad and abs(self.z - self.waypoints[0][2]) < 1:
             self.next_waypoint(config, elps_time)
+        else:
+            self.set_v_demand(self.config.max_v / 2.0)
 
 
         # if self needs to move in the xy plane
@@ -165,8 +167,6 @@ class Vehicle:
             else:
                 self.set_pitch_demand(degrees(atan(((self.z - self.waypoints[0][2]) / dist_xy))))
 
-        self.set_v_demand(self.config.max_v / 2)
-
     def next_waypoint(self, config, elps_time):
         if self.state == 2 or self.waypoints[0][2] == 0:
             self.set_state(0, elps_time)
@@ -174,6 +174,7 @@ class Vehicle:
                 # Loiter on surface
                 self.set_state(2, elps_time)
                 self.waypoints = self.waypoints + [[self.waypoints[0][0], self.waypoints[0][1], 0]]
+                self.set_v_demand(0)
         self.sat_commd = 0
         self.waypoints.pop(0)
 
