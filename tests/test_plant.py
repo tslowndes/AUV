@@ -14,8 +14,9 @@ from Config_class import *
 
 def test_yaw_logic(yaw, yaw_demand, expected):
     init_x, init_y, init_z, init_yaw = 0,0,0,0
-    AUV = Vehicle(0, 1, init_x, init_y, init_z, init_yaw)
     config = sim_config('config/sim_config.csv')
+    AUV = Vehicle(config, 0, 1, init_x, init_y, init_z, init_yaw)
+
 
     AUV.set_yaw(yaw)
     AUV.set_yaw_demand(yaw_demand)
@@ -35,13 +36,13 @@ def test_yaw_logic(yaw, yaw_demand, expected):
 ])
 
 def test_pitch(start_loc, wayp, expected):
-    AUV = Vehicle(0, 1, start_loc[0], start_loc[1], start_loc[2], 0)
     config = sim_config('config/sim_config.csv')
+    AUV = Vehicle(config, 0, 1, start_loc[0], start_loc[1], start_loc[2], 0)
 
     AUV.waypoints = [wayp]
     AUV.current_waypoint = 0
 
-    AUV.move_to_waypoint()
+    AUV.move_to_waypoint(0, config)
     AUV.plant(config.time_step)
 
     if expected == 1:
@@ -63,8 +64,8 @@ def test_pitch(start_loc, wayp, expected):
 
 
 def test_v(v, v_demand, expected):
-    AUV = Vehicle(0, 1, 0, 0, 0, 0)
     config = sim_config('config/sim_config.csv')
+    AUV = Vehicle(config, 0, 1, 0, 0, 0, 0)
 
     AUV.set_v(v)
     AUV.set_v_demand(v_demand)
