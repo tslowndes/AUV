@@ -128,6 +128,11 @@ class Vehicle:
                 self.waypoints = [[self.lon, self.lat, 0]] + self.waypoints
 
     def set_waypoint(self, target, config):
+        if config.dive_depth > 0:
+            dive_depth = -1 * config.dive_depth
+        else:
+            dive_depth = config.dive_depth
+
         if self.state != 2:
             # If the distance to a waypoint > the set maximum distance for a single dive, a dive of dive_dist (xy) is perfromed in
             # the same direction of the original waypoint. This means the AUV has a chance of reaching depth instead of diving at
@@ -137,9 +142,9 @@ class Vehicle:
             if dist_to_target > config.dive_dist:
                 dive_lon = (target[0] - self.lon) * (config.dive_dist / dist_to_target)
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
-                self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, config.dive_depth]]
+                self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, dive_depth]]
             else:
-                self.waypoints = [list(target) + [config.dive_depth]]
+                self.waypoints = [list(target) + [dive_depth]]
 
     def move_to_waypoint(self, elps_time, config):
         dist_mag =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
@@ -174,7 +179,8 @@ class Vehicle:
                 # Loiter on surface
                 self.set_state(2, elps_time)
                 self.waypoints = self.waypoints + [[self.waypoints[0][0], self.waypoints[0][1], 0]]
-                self.set_v_demand(0)
+                # This was put in for test simulation
+                # self.set_v_demand(0)
         self.sat_commd = 0
         self.waypoints.pop(0)
 
