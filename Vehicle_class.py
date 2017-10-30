@@ -139,7 +139,7 @@ class Vehicle:
                 dive_lat = (target[1] - self.lat) * (config.dive_dist / dist_to_target)
                 self.waypoints = [[self.lon + dive_lon, self.lat + dive_lat, config.dive_depth]]
             else:
-                self.waypoints = [target + [config.dive_depth]]
+                self.waypoints = [list(target) + [config.dive_depth]]
 
     def move_to_waypoint(self, elps_time, config):
         dist_mag =  find_dist2((self.lon, self.lat), (self.waypoints[0][0], self.waypoints[0][1]))
