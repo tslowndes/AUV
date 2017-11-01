@@ -107,8 +107,7 @@ class Vehicle:
                             self.time_stamps[i] = base.time_stamps[i]
                             # Add vehicle to loc_vehicles, as only < is used in the condition, if self.time_stamp = basestation.timestamp
                             # No download occurs as there was been no update acc or sat from vehicle i since the last surface.
-                            if self.loc_vehicles[i] == 0:
-                                self.loc_vehicles[i] = 1
+                            self.loc_vehicles[i] = 1
                         # if timestamps are equal there has been no update from vehicle i since last surface and hence data is uncertain
                         # config.comms = 0 = sat only case however because all the AUVs dive in order the first one surfaces, checks the
                         # base and its got all the same info as before hence the AUV thinks all the others have died.
