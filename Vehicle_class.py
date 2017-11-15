@@ -245,12 +245,14 @@ class Vehicle:
         if config.feature_move == 1:
             global_max_loc = [500 + (0.078 * t * config.time_step), 500]
         else:
-            global_max_loc = [500,500]
+            global_max_loc = [-2.42175, 51.24565]
+
         dist2max = find_dist2((self.lon, self.lat), (global_max_loc[0], global_max_loc[1]))
+
         if dist2max > 850:
             self.measurement = 0
         else:
-            self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist2max) ** 2)) / (2 * (125 ** 2)))
+            self.measurement = 25000 * (1 / (125 * np.sqrt(2 * pi))) * np.exp((-((dist2max) ** 2)) / (2 * (300 ** 2)))
 
     def go(self, config, elps_time = 0):
         # Have to skip move_to_waypoint in velocity validation.
